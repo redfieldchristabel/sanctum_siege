@@ -1,15 +1,19 @@
 {
-  "name": "relay",
+  "name": "sanctum-relay",
   "version": "1.0.0",
-  "description": "a connector from tiktok stream to our game",
-  "main": "index.ts",
+  "description": "Sanctum Siege — TikTok WebSocket relay + dev CLI",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "relay": "npx tsx index.ts",
+    "cli": "npx tsx cli.ts",
+    "dev": "npx concurrently -n relay,cli 'npm run relay' 'npm run cli'"
   },
-  "author": "",
-  "license": "ISC",
+  "dependencies": {
+    "ws": "^8.18.2"
+  },
   "devDependencies": {
     "@types/node": "^26.0.0",
+    "@types/ws": "^8.18.1",
     "typescript": "^6.0.3"
   }
 }

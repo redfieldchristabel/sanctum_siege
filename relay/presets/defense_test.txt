@@ -1,0 +1,7 @@
+# Defense test — Queen surrounded, massive waves
+join Guardian
+start
+wave boss
+wave hard
+wave hard
+wave boss

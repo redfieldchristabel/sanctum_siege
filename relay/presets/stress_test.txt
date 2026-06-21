@@ -1,0 +1,17 @@
+# Stress test — 10 angels, 5 hard waves
+join Alpha
+join Bravo
+join Charlie
+join Delta
+join Echo
+join Foxtrot
+join Golf
+join Hotel
+join India
+join Juliet
+start
+wave hard
+wave hard
+wave hard
+wave hard
+wave hard

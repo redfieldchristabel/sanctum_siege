@@ -1,0 +1,8 @@
+# Boss rush — 3 angels, chain of boss waves
+join Tank
+join Healer
+join DPS
+start
+wave boss
+wave boss
+wave boss

@@ -1,0 +1,6 @@
+# Quick test — 3 angels, 1 normal wave
+join Alice
+join Bob
+join Charlie
+start
+wave normal

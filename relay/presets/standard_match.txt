@@ -1,0 +1,10 @@
+# Standard match — 5 angels, 3 waves queued
+join Alice
+join Bob
+join Charlie
+join Diana
+join Eve
+start
+wave normal
+wave hard
+wave boss
