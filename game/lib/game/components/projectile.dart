@@ -18,42 +18,30 @@ class Projectile extends PositionComponent {
   })  : _isAngel = isAngel,
         _vx = _calcDx(startX, startY, targetX, targetY, speed),
         _vy = _calcDy(startX, startY, targetX, targetY, speed),
-        super(size: Vector2(6, 12)) {
+        super(size: Vector2(20, 28)) {
     position = Vector2(startX, startY);
     angle = atan2(targetY - startY, targetX - startX) + pi / 2;
   }
 
-  /// Create an angel projectile (light bolt).
   factory Projectile.angel({
-    required double startX,
-    required double startY,
-    required double targetX,
-    required double targetY,
+    required double startX, required double startY,
+    required double targetX, required double targetY,
   }) {
     return Projectile._(
-      startX: startX,
-      startY: startY,
-      targetX: targetX,
-      targetY: targetY,
-      isAngel: true,
-      speed: 280,
+      startX: startX, startY: startY,
+      targetX: targetX, targetY: targetY,
+      isAngel: true, speed: 280,
     );
   }
 
-  /// Create a devil projectile (dark bolt).
   factory Projectile.devil({
-    required double startX,
-    required double startY,
-    required double targetX,
-    required double targetY,
+    required double startX, required double startY,
+    required double targetX, required double targetY,
   }) {
     return Projectile._(
-      startX: startX,
-      startY: startY,
-      targetX: targetX,
-      targetY: targetY,
-      isAngel: false,
-      speed: 220,
+      startX: startX, startY: startY,
+      targetX: targetX, targetY: targetY,
+      isAngel: false, speed: 220,
     );
   }
 
@@ -78,7 +66,7 @@ class Projectile extends PositionComponent {
     super.update(dt);
     position.x += _vx * dt;
     position.y += _vy * dt;
-    if (position.y < -30 || position.y > 1310 || position.x < -30 || position.x > 750) {
+    if (position.y < -40 || position.y > 1320 || position.x < -40 || position.x > 760) {
       removeFromParent();
     }
   }
@@ -86,25 +74,42 @@ class Projectile extends PositionComponent {
   @override
   void render(Canvas canvas) {
     super.render(canvas);
+    canvas.save();
+    canvas.translate(size.x / 2, size.y / 2);
+    canvas.rotate(angle);
 
     if (_isAngel) {
-      // Golden light bolt
+      // Big golden bolt with glow
       final glow = Paint()
         ..shader = RadialGradient(
-          center: Alignment.center,
-          radius: 1.0,
+          center: Alignment.center, radius: 1.0,
           colors: [
-            const Color(0x44FFFF88),
+            const Color(0x66FFFF44),
             const Color(0x00000000),
           ],
-        ).createShader(Rect.fromLTWH(-8, -10, 16, 20));
-      canvas.drawRect(Rect.fromLTWH(-8, -10, 16, 20), glow);
-      canvas.drawOval(Rect.fromLTWH(-3, -6, 6, 12), Paint()..color = const Color(0xFFFFFF88));
-      canvas.drawOval(Rect.fromLTWH(-1.5, -4, 3, 8), Paint()..color = const Color(0xFFFFFFFF));
+        ).createShader(const Rect.fromLTWH(-16, -18, 32, 36));
+      canvas.drawRect(const Rect.fromLTWH(-16, -18, 32, 36), glow);
+
+      final body = Paint()..color = const Color(0xFFFFFF66);
+      canvas.drawRRect(RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-4, -14, 8, 28), const Radius.circular(4)), body);
+      canvas.drawRRect(RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-2, -12, 4, 24), const Radius.circular(2)),
+        Paint()..color = const Color(0xFFFFFFFF));
+      // Tip glow
+      canvas.drawCircle(const Offset(0, -14), 5, Paint()..color = const Color(0x66FFFF88));
     } else {
       // Dark red bolt
-      canvas.drawOval(Rect.fromLTWH(-3, -6, 6, 12), Paint()..color = const Color(0xFFFF4400));
-      canvas.drawOval(Rect.fromLTWH(-1.5, -4, 3, 8), Paint()..color = const Color(0xFFFF2200));
+      final body = Paint()..color = const Color(0xFFFF4422);
+      canvas.drawRRect(RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-4, -14, 8, 28), const Radius.circular(4)), body);
+      canvas.drawRRect(RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-2, -12, 4, 24), const Radius.circular(2)),
+        Paint()..color = const Color(0xFFFF6644));
+      // Tip glow
+      canvas.drawCircle(const Offset(0, -14), 5, Paint()..color = const Color(0x66FF2200));
     }
+
+    canvas.restore();
   }
 }
