@@ -4,6 +4,11 @@
 // Usage:
 //   npx tsx cli.ts                    — interactive mode
 //   echo "wave hard" | npx tsx cli.ts --pipe   — pipe mode
+//
+// TikTok simulation:
+//   join <name>   → viewer enters stream (appears in party, sets active user)
+//   like <count>  → active user sends likes (adds points to their lobby score)
+//   gift <n> [c]  → active user sends a gift
 
 import * as readline from "node:readline";
 import { stdin as input, stdout as output, exit } from "node:process";
@@ -13,82 +18,117 @@ import * as path from "node:path";
 const RELAY_URL = process.env.RELAY_URL ?? "ws://localhost:8080/dev";
 const PRESETS_DIR = path.resolve(import.meta.dirname!, "presets");
 
+// ─── Active user tracking ─────────────────────────
+let _activeUser: { userId: string; username: string } | null = null;
+
 // ─── Help text ───────────────────────────────────────────────
 
 const HELP = `
-  ⚔️  Sanctum Siege — Dev CLI
+  ⚔️  Sanctum Siege — Dev CLI (TikTok Simulator)
 
-  Commands:
-    start / go          Start game (idle → 3s countdown → fight)
-    join <name>          Simulate a viewer joining
-    leave <userId>       Viewer leaves
-    like [count]         Send likes (default: 1)
-    gift <name> [count]  Simulate a gift
-    comment <text>       Chat comment from viewer
-    wave [type]          Spawn devil wave (normal/hard/boss)
-    angel <count>        Spawn angels
-    config <key> <val>   Change game config at runtime
-    run <name>           Run a preset script (presets/<name>.txt)
-    presets              List available presets
-    help                 Show this
-    exit / quit          Disconnect
+  TikTok Events:
+    join <name>      Viewer enters stream (sets active user, appears in party)
+    like [count]     Active user sends likes (adds lobby points)
+    gift <name> [c]  Active user sends a gift (adds lobby points)
+    comment <text>   Chat comment from active user
+    leave            Active user leaves
+
+  Game Admin:
+    start / go       Start game (idle → 3s countdown → fight)
+    wave [type]      Spawn devil wave (normal/hard/boss)
+    angel <count>    Spawn angels
+    config <k> <v>   Change game config at runtime
+    march            Trigger start-match transition
+
+  Other:
+    lobby            Fill lobby with mock party for testing
+    lobby_clear      Reset all lobby slots
+    presets          List available presets
+    run <name>       Run a preset
+    help             Show this
+    exit / quit      Disconnect
 
   Shortcuts:
-    j <name>        = join
-    l <id>          = leave
-    g <n> [c]       = gift
-    w [type]        = wave
+    j <name>    = join
+    l <id>      = leave
+    g <n> [c]   = gift
+    w [type]    = wave
 
 `.trim();
 
-// ─── Command → event mapping ─────────────────────────────────
+// ─── Command builders ────────────────────────────────────────
+
+type CommandFn = (match: RegExpMatchArray) => { event: string; data: Record<string, unknown> };
 
 interface CommandEntry {
   pattern: RegExp;
-  build: (match: RegExpMatchArray) => { event: string; data: Record<string, unknown> };
+  build: CommandFn;
+}
+
+function send(a: { event: string; data: Record<string, unknown> }): void {
+  sendEvent(a.event, a.data);
 }
 
 const commands: CommandEntry[] = [
+  // ── TikTok event: join ──────────────────────────
+  {
+    pattern: /^(?:join|j)\s+(.+)$/i,
+    build: ([, name]) => {
+      const userId = `dev_${Date.now()}`;
+      const username = name.trim();
+      _activeUser = { userId, username };
+      return { event: "join", data: { userId, username, isGifter: false } };
+    },
+  },
+  // ── TikTok event: like ──────────────────────────
+  {
+    pattern: /^(?:like|likes?)\s*(\d+)?$/i,
+    build: ([, count]) => {
+      const c = count ? parseInt(count) : 1;
+      const u = _activeUser ?? { userId: "dev", username: "Dev" };
+      return { event: "like", data: { userId: u.userId, username: u.username, count: c } };
+    },
+  },
+  // ── TikTok event: gift ──────────────────────────
+  {
+    pattern: /^(?:gift|g)\s+(\S+)\s*(\d+)?$/i,
+    build: ([, giftName, count]) => {
+      const c = count ? parseInt(count) : 1;
+      const u = _activeUser ?? { userId: "dev", username: "Dev" };
+      return {
+        event: "gift",
+        data: {
+          userId: u.userId,
+          username: u.username,
+          giftName: giftName.trim(),
+          count: c,
+          // Include calculated points so the receiver doesn't need gift name→points logic
+          lobbyPoints: calcGiftPoints(giftName, c),
+        },
+      };
+    },
+  },
+  // ── TikTok event: comment ───────────────────────
+  {
+    pattern: /^(?:comment|chat|c)\s+(.+)$/i,
+    build: ([, text]) => {
+      const u = _activeUser ?? { userId: "dev_chat", username: "Dev" };
+      return { event: "comment", data: { userId: u.userId, username: u.username, text: text.trim() } };
+    },
+  },
+  // ── TikTok event: leave ─────────────────────────
+  {
+    pattern: /^(?:leave|l)\s*(\S*)$/i,
+    build: ([, id]) => {
+      const userId = id || _activeUser?.userId || "unknown";
+      _activeUser = null;
+      return { event: "leave", data: { userId } };
+    },
+  },
+  // ── Game admin ──────────────────────────────────
   {
     pattern: /^(?:game_start|start|begin|go)$/i,
     build: () => ({ event: "game_start", data: {} }),
-  },
-  {
-    pattern: /^(?:join|j)\s+(.+)$/i,
-    build: ([, name]) => ({
-      event: "join",
-      data: { userId: `dev_${Date.now()}`, username: name.trim() },
-    }),
-  },
-  {
-    pattern: /^(?:leave|l)\s+(\S+)$/i,
-    build: ([, id]) => ({ event: "leave", data: { userId: id } }),
-  },
-  {
-    pattern: /^(?:like|likes?)\s*(\d+)?$/i,
-    build: ([, count]) => ({
-      event: "like",
-      data: { userId: "dev", count: count ? parseInt(count) : 1 },
-    }),
-  },
-  {
-    pattern: /^(?:gift|g)\s+(\S+)\s*(\d+)?$/i,
-    build: ([, name, count]) => ({
-      event: "gift",
-      data: {
-        userId: "dev",
-        username: "Dev",
-        giftName: name.trim(),
-        count: count ? parseInt(count) : 1,
-      },
-    }),
-  },
-  {
-    pattern: /^(?:comment|chat|c)\s+(.+)$/i,
-    build: ([, text]) => ({
-      event: "comment",
-      data: { userId: "dev_chat", username: "TestUser", text: text.trim() },
-    }),
   },
   {
     pattern: /^(?:wave|w)\s*(normal|hard|boss)?$/i,
@@ -105,6 +145,10 @@ const commands: CommandEntry[] = [
     }),
   },
   {
+    pattern: /^march$/i,
+    build: () => ({ event: "start_match", data: {} }),
+  },
+  {
     pattern: /^(?:config|set)\s+(\S+)\s+(.+)$/i,
     build: ([, key, value]) => {
       let parsed: unknown = value.trim();
@@ -115,7 +159,25 @@ const commands: CommandEntry[] = [
       return { event: "dev_config", data: { key: key.trim(), value: parsed } };
     },
   },
+  // ── Lobby admin ─────────────────────────────────
+  {
+    pattern: /^lobby$/i,
+    build: () => ({ event: "lobby_update", data: {} }),
+  },
+  {
+    pattern: /^lobby_clear$/i,
+    build: () => ({ event: "lobby_clear", data: {} }),
+  },
 ];
+
+/** Convert gift name to lobby points. */
+function calcGiftPoints(name: string, count: number): number {
+  const lower = name.toLowerCase();
+  if (lower.includes("capsule") || lower.includes("lion")) return 500 * count;
+  if (lower.includes("donut") || lower.includes("diamond")) return 50 * count;
+  if (lower.includes("rose") || lower.includes("flower")) return 10 * count;
+  return 0; // unrecognized gifts don't add lobby points
+}
 
 // ─── WebSocket connection ────────────────────────────────────
 
@@ -160,7 +222,7 @@ function sendEvent(event: string, data: Record<string, unknown>): void {
   ws.send(JSON.stringify({ event, data }));
 }
 
-/** Execute a single CLI command line (same parsing as interactive mode). */
+/** Execute a single CLI command line. Supports multi-action commands. */
 function executeLine(line: string): boolean {
   const trimmed = line.trim();
   if (!trimmed || /^(exit|quit|q)$/i.test(trimmed)) return true;
@@ -171,11 +233,11 @@ function executeLine(line: string): boolean {
     runPreset(m[1]!);
     return true;
   }
+
   for (const cmd of commands) {
     const m = trimmed.match(cmd.pattern);
     if (m) {
-      const { event, data } = cmd.build(m);
-      sendEvent(event, data);
+      send(cmd.build(m));
       return true;
     }
   }
@@ -219,7 +281,7 @@ async function runPreset(name: string): Promise<void> {
   for (const line of lines) {
     const ok = executeLine(line);
     if (!ok) console.log(`  ? Skipped: "${line}"`);
-    await new Promise((r) => setTimeout(r, 300)); // delay between commands
+    await new Promise((r) => setTimeout(r, 300));
   }
   console.log(`  ✓ Preset "${name}" done\n`);
 }
@@ -236,7 +298,7 @@ async function interactive(): Promise<void> {
     const trimmed = line.trim();
     if (!trimmed) { rl.prompt(); continue; }
 
-    // Built-in commands (not sent over WebSocket)
+    // Built-in commands
     if (/^(exit|quit|q)$/i.test(trimmed)) {
       console.log("bye");
       ws?.close();
@@ -265,8 +327,7 @@ async function interactive(): Promise<void> {
     for (const cmd of commands) {
       const m = trimmed.match(cmd.pattern);
       if (m) {
-        const { event, data } = cmd.build(m);
-        sendEvent(event, data);
+        send(cmd.build(m));
         matched = true;
         break;
       }
@@ -304,8 +365,6 @@ async function pipeMode(): Promise<void> {
 async function main() {
   const args = process.argv.slice(2);
   const isPipe = args.includes("--pipe");
-
-  // If first arg is a preset name, run it immediately
   const presetName = args.find((a) => !a.startsWith("--"));
 
   try {
@@ -320,7 +379,6 @@ async function main() {
   }
 
   if (presetName && commands.every((c) => !c.pattern.test(`run ${presetName}`))) {
-    // Not a known command — treat as preset name
     await runPreset(presetName);
     ws?.close();
     exit(0);

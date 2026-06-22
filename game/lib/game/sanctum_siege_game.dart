@@ -290,42 +290,38 @@ class SanctumSiegeGame extends FlameGame {
 
   // ─── RELAY EVENTS ─────────────────────────────────────────
 
-  void _handleEvent(String event, Map<String, dynamic> data, String source) {
+  void _handleEvent(RelayEvent event) {
     if (_phase == GamePhase.gameOver || _phase == GamePhase.victory) return;
 
     switch (event) {
-      case 'game_start':
+      case StartGameEvent _:
         _startCountdown();
         break;
 
-      case 'join':
-        // Angels can join at any time (idle, countdown, fighting)
-        final name = data['username'] as String? ?? 'Angel';
-        final userId = data['userId'] as String? ?? 'anon';
+      case JoinEvent e:
+        final name = e.username;
+        final userId = e.userId;
         _spawnAngel(userId, name);
         break;
 
-      case 'spawn_wave':
-        final difficulty = data['difficulty'] as String? ?? 'normal';
+      case SpawnWaveEvent e:
+        final difficulty = e.difficulty ?? 'normal';
         if (_phase == GamePhase.countdown) {
-          // Queue waves during countdown, deploy when fighting starts
           _waveQueue.add(difficulty);
           print('[game] wave queued: $difficulty (${_waveQueue.length} total)');
         } else if (_phase == GamePhase.fighting) {
-          // Instant spawn during combat
           _spawnDevilWave(difficulty);
         } else {
           print('[game] cannot spawn wave in $_phase phase');
         }
         break;
 
-      case 'spawn_angel':
-        final count = data['count'] as int? ?? 1;
-        for (int i = 0; i < count; i++) _spawnAngel('dev_$i', 'Dev Angel');
+      case SpawnAngelEvent e:
+        for (int i = 0; i < e.count; i++) _spawnAngel('dev_$i', 'Dev Angel');
         break;
 
-      case 'dev_config':
-        print('[game] config: ${data['key']} = ${data['value']}');
+      case DevConfigEvent e:
+        print('[game] config: ${e.key} = ${e.value}');
         break;
 
       default:

@@ -1,8 +1,8 @@
 import 'dart:io';
-import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
-import 'game/sanctum_siege_game.dart';
+import 'game/lobby/angel_guild_screen.dart';
+import 'game/lobby/guild_lobby_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,7 +13,7 @@ void main() async {
     await wm.ensureInitialized();
 
     final windowOptions = WindowOptions(
-      size: const Size(450, 800),  // 9:16 portrait
+      size: const Size(450, 800), // 9:16 portrait
       minimumSize: const Size(360, 640),
       center: true,
       title: 'Sanctum Siege',
@@ -25,5 +25,24 @@ void main() async {
     });
   }
 
-  runApp(GameWidget(game: SanctumSiegeGame()));
+  runApp(SanctumSiegeApp(controller: GuildLobbyController()));
+}
+
+/// Root app — starts at Angel Guild lobby, then enters battle.
+class SanctumSiegeApp extends StatelessWidget {
+  final GuildLobbyController controller;
+
+  const SanctumSiegeApp({super.key, required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Sanctum Siege',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark(useMaterial3: true).copyWith(
+        scaffoldBackgroundColor: const Color(0xFF0B0A1A),
+      ),
+      home: AngelGuildScreen(controller: controller),
+    );
+  }
 }

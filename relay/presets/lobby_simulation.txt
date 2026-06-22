@@ -1,0 +1,99 @@
+# Lobby Simulation — fills 30 slots, simulates viewers
+# tapping likes to climb the leaderboard.
+#
+# Usage: docker compose run --rm cli lobby_simulation
+#
+# Each "join" sets the active user. Subsequent "like" commands
+# add points to whoever joined last (like TikTok behavior).
+
+# Phase 1 — Viewers enter stream (fill party roster)
+join SakuraBlade
+like 10
+join Raven_Night
+like 8
+join AetherKing
+join LunaStar_99
+join Zer0_Cool
+join PhantomX
+join CrimsonTide
+join Novaflare
+join ShadowWeaver
+join Celestia_M
+join BlazeFury
+join FrostByte
+join VoidWalker
+join StormChaser
+join LunarEclipse
+join Phoenix_Rise
+join ThunderStrike
+join AquaHeart
+join DuskRider
+join EmberGlow
+join SilverFang
+join CrystalMist
+join IronWill
+join GentleBreeze
+join NightOwl
+join TinySparrow
+join PixelPaw
+join FloatingLeaf
+join DewDrop_42
+join HappyBean
+
+# Phase 2 — Mid-pack players tap hard
+join CrimsonTide
+like 80
+join Novaflare
+like 90
+join ShadowWeaver
+like 100
+join Celestia_M
+like 60
+
+# Phase 3 — Wildcards get attention
+join TinySparrow
+like 150
+join PixelPaw
+like 120
+join FloatingLeaf
+like 130
+
+# Phase 4 — Top 3 race
+join SakuraBlade
+like 200
+join Raven_Night
+like 180
+join AetherKing
+like 220
+
+# Phase 5 — More activity
+join BlazeFury
+like 75
+join FrostByte
+like 65
+join VoidWalker
+like 85
+join StormChaser
+like 70
+
+# Phase 6 — Final surge: CrimsonTide snipes #1
+join CrimsonTide
+like 300
+
+# Phase 7 — Wildcards keep climbing
+join DewDrop_42
+like 90
+join HappyBean
+like 60
+join TinySparrow
+like 100
+
+# Phase 8 — Last taps
+join SakuraBlade
+like 120
+join Raven_Night
+like 90
+join AetherKing
+like 60
+join LunaStar_99
+like 45

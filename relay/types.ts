@@ -9,7 +9,13 @@ export type GameEvent =
   | { event: "comment";   data: CommentData;   source: EventSource }
   | { event: "spawn_wave"; data: SpawnWaveData; source: EventSource }
   | { event: "spawn_angel"; data: SpawnAngelData; source: EventSource }
-  | { event: "dev_config"; data: DevConfigData;  source: "dev" };
+  | { event: "dev_config"; data: DevConfigData;  source: "dev" }
+  // ── Lobby events ──
+  | { event: "lobby_join";    data: LobbyJoinData;       source: "dev" }
+  | { event: "lobby_update"; data: Record<string, never>; source: "dev" }
+  | { event: "lobby_clear";  data: Record<string, never>; source: "dev" }
+  | { event: "lobby_points"; data: LobbyPointsData;      source: "dev" }
+  | { event: "start_match";  data: Record<string, never>; source: "dev" };
 
 export type EventSource = "tiktok" | "dev";
 
@@ -51,6 +57,17 @@ export interface SpawnAngelData {
 export interface DevConfigData {
   key: string;
   value: unknown;
+}
+
+export interface LobbyJoinData {
+  username: string;
+  points: number;
+  isGifter: boolean;
+}
+
+export interface LobbyPointsData {
+  username: string;
+  points: number;
 }
 
 /** Message the CLI sends over the wire (source is implied). */
