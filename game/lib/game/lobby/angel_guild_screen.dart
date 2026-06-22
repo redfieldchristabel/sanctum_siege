@@ -74,6 +74,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
       case LobbyClearEvent _:
         ctrl.clearLobby();
       case StartMatchEvent _:
+      case StartGameEvent _:
         ctrl.startMatchTransition(() {});
       default:
         break;

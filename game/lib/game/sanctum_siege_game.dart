@@ -133,7 +133,7 @@ class SanctumSiegeGame extends FlameGame {
       if (nearestPos != null) {
         final dist = a.position.distanceTo(nearestPos);
         if (dist <= angelRange) {
-          a.moveTarget = null; // stop, in range to shoot
+          a.moveTarget = a.position.clone(); // stop in place
         } else {
           a.moveTarget = nearestPos.clone(); // walk toward
         }
@@ -148,7 +148,7 @@ class SanctumSiegeGame extends FlameGame {
       if (nearestPos != null) {
         final dist = d.position.distanceTo(nearestPos);
         if (dist <= devilRange) {
-          d.moveTarget = null; // stop, in range to shoot
+          d.moveTarget = d.position.clone(); // stop in place
         } else {
           d.moveTarget = nearestPos.clone(); // walk toward
         }
