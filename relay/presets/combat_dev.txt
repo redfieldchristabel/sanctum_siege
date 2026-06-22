@@ -1,0 +1,24 @@
+# Combat Dev — starts game, spawns angels and waves for testing fight mechanics.
+#
+# Usage: docker compose run --rm cli combat_dev
+
+# Join a few angels
+join Alice
+join Bob
+join Charlie
+
+# Start the game (countdown → fighting)
+go
+
+# Spawn a normal wave immediately
+wave
+
+# Small delay simulated by next command spacing (300ms between lines in preset)
+# Spawn another wave to keep pressure
+wave
+
+# Harder wave
+wave hard
+
+# Boss wave
+wave boss

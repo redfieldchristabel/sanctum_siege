@@ -237,7 +237,7 @@ class SanctumSiegeGame extends FlameGame {
 
       for (final d in devils) {
         if (!d.isMounted) continue;
-        if (p.position.distanceTo(d.position) < 28) {
+        if (p.position.distanceTo(d.position) < 24) {
           p.removeFromParent();
           d.takeDamage(1);
           hit = true;
@@ -247,7 +247,7 @@ class SanctumSiegeGame extends FlameGame {
       if (hit) continue;
 
       if (king != null && king.isMounted) {
-        if (p.position.distanceTo(king.position) < 36) {
+        if (p.position.distanceTo(king.position) < 32) {
           p.removeFromParent();
           king.takeDamage(1);
           continue;
@@ -256,7 +256,7 @@ class SanctumSiegeGame extends FlameGame {
 
       for (final a in angels) {
         if (!a.isMounted) continue;
-        if (p.position.distanceTo(a.position) < 28) {
+        if (p.position.distanceTo(a.position) < 24) {
           p.removeFromParent();
           a.takeDamage(1);
           hit = true;
@@ -266,7 +266,7 @@ class SanctumSiegeGame extends FlameGame {
       if (hit) continue;
 
       if (queen != null && queen.isMounted) {
-        if (p.position.distanceTo(queen.position) < 36) {
+        if (p.position.distanceTo(queen.position) < 32) {
           p.removeFromParent();
           queen.takeDamage(1);
         }

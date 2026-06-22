@@ -3,10 +3,11 @@ import 'package:flame/components.dart';
 import 'package:flutter/painting.dart';
 
 /// A projectile that flies toward a target position.
-/// Angels fire holy bolts (light), devils fire dark bolts.
+/// Bigger, brighter, with a visible trail so it's easy to see on stream.
 class Projectile extends PositionComponent {
   final double _vx, _vy;
   final bool _isAngel;
+  double _lifetime = 0;
 
   Projectile._({
     required double startX,
@@ -14,13 +15,14 @@ class Projectile extends PositionComponent {
     required double targetX,
     required double targetY,
     required bool isAngel,
-    double speed = 280,
+    double speed = 320,
   })  : _isAngel = isAngel,
         _vx = _calcDx(startX, startY, targetX, targetY, speed),
         _vy = _calcDy(startX, startY, targetX, targetY, speed),
-        super(size: Vector2(20, 28)) {
+        super(size: Vector2(32, 40)) {
     position = Vector2(startX, startY);
     angle = atan2(targetY - startY, targetX - startX) + pi / 2;
+    anchor = Anchor.center;
   }
 
   factory Projectile.angel({
@@ -30,7 +32,7 @@ class Projectile extends PositionComponent {
     return Projectile._(
       startX: startX, startY: startY,
       targetX: targetX, targetY: targetY,
-      isAngel: true, speed: 280,
+      isAngel: true, speed: 320,
     );
   }
 
@@ -41,7 +43,7 @@ class Projectile extends PositionComponent {
     return Projectile._(
       startX: startX, startY: startY,
       targetX: targetX, targetY: targetY,
-      isAngel: false, speed: 220,
+      isAngel: false, speed: 260,
     );
   }
 
@@ -64,9 +66,11 @@ class Projectile extends PositionComponent {
   @override
   void update(double dt) {
     super.update(dt);
+    _lifetime += dt;
     position.x += _vx * dt;
     position.y += _vy * dt;
-    if (position.y < -40 || position.y > 1320 || position.x < -40 || position.x > 760) {
+    // Remove when fully off-screen (with buffer for projectile size)
+    if (position.x < -60 || position.x > 780 || position.y < -60 || position.y > 1340) {
       removeFromParent();
     }
   }
@@ -75,39 +79,91 @@ class Projectile extends PositionComponent {
   void render(Canvas canvas) {
     super.render(canvas);
     canvas.save();
-    canvas.translate(size.x / 2, size.y / 2);
+    canvas.translate(0, 0);
     canvas.rotate(angle);
 
+    final glowAlpha = (sin(_lifetime * 12) * 0.3 + 0.5).clamp(0.2, 0.8);
+
     if (_isAngel) {
-      // Big golden bolt with glow
+      // ── Trail glow ──
+      final trail = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0x00FFF44F),
+            const Color(0x55FFF44F),
+            const Color(0x00FFF44F),
+          ],
+        ).createShader(const Rect.fromLTWH(-4, -30, 8, 60));
+      canvas.drawRect(const Rect.fromLTWH(-4, -30, 8, 60), trail);
+
+      // ── Outer glow ──
       final glow = Paint()
         ..shader = RadialGradient(
           center: Alignment.center, radius: 1.0,
           colors: [
-            const Color(0x66FFFF44),
+            Color.fromRGBO(255, 255, 100, glowAlpha),
             const Color(0x00000000),
           ],
-        ).createShader(const Rect.fromLTWH(-16, -18, 32, 36));
-      canvas.drawRect(const Rect.fromLTWH(-16, -18, 32, 36), glow);
+        ).createShader(const Rect.fromLTWH(-18, -22, 36, 44));
+      canvas.drawRect(const Rect.fromLTWH(-18, -22, 36, 44), glow);
 
-      final body = Paint()..color = const Color(0xFFFFFF66);
-      canvas.drawRRect(RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-4, -14, 8, 28), const Radius.circular(4)), body);
-      canvas.drawRRect(RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-2, -12, 4, 24), const Radius.circular(2)),
-        Paint()..color = const Color(0xFFFFFFFF));
-      // Tip glow
-      canvas.drawCircle(const Offset(0, -14), 5, Paint()..color = const Color(0x66FFFF88));
+      // ── Bolt body ──
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          const Rect.fromLTWH(-5, -18, 10, 36), const Radius.circular(5)),
+        Paint()..color = const Color(0xFFFFDD44));
+
+      // ── Bright core ──
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          const Rect.fromLTWH(-2, -15, 4, 30), const Radius.circular(2)),
+        Paint()..color = const Color(0xFFFFFFAA));
+
+      // ── Tip spark ──
+      canvas.drawCircle(const Offset(0, -18), 6,
+        Paint()..color = Color.fromRGBO(255, 255, 150, glowAlpha));
     } else {
-      // Dark red bolt
-      final body = Paint()..color = const Color(0xFFFF4422);
-      canvas.drawRRect(RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-4, -14, 8, 28), const Radius.circular(4)), body);
-      canvas.drawRRect(RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-2, -12, 4, 24), const Radius.circular(2)),
-        Paint()..color = const Color(0xFFFF6644));
-      // Tip glow
-      canvas.drawCircle(const Offset(0, -14), 5, Paint()..color = const Color(0x66FF2200));
+      // ── Trail glow (dark red) ──
+      final trail = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0x00FF4422),
+            const Color(0x55FF4422),
+            const Color(0x00FF4422),
+          ],
+        ).createShader(const Rect.fromLTWH(-4, -30, 8, 60));
+      canvas.drawRect(const Rect.fromLTWH(-4, -30, 8, 60), trail);
+
+      // ── Outer glow ──
+      final glow = Paint()
+        ..shader = RadialGradient(
+          center: Alignment.center, radius: 1.0,
+          colors: [
+            Color.fromRGBO(255, 68, 34, glowAlpha * 0.8),
+            const Color(0x00000000),
+          ],
+        ).createShader(const Rect.fromLTWH(-18, -22, 36, 44));
+      canvas.drawRect(const Rect.fromLTWH(-18, -22, 36, 44), glow);
+
+      // ── Bolt body ──
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          const Rect.fromLTWH(-5, -18, 10, 36), const Radius.circular(5)),
+        Paint()..color = const Color(0xFFFF4422));
+
+      // ── Bright core ──
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          const Rect.fromLTWH(-2, -15, 4, 30), const Radius.circular(2)),
+        Paint()..color = const Color(0xFFFF8866));
+
+      // ── Tip spark ──
+      canvas.drawCircle(const Offset(0, -18), 6,
+        Paint()..color = Color.fromRGBO(255, 100, 50, glowAlpha));
     }
 
     canvas.restore();
