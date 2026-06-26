@@ -1,0 +1,116 @@
+# Full Game Test — Fills lobby, spawns angels, runs combat waves end-to-end.
+#
+# Usage: docker compose run --rm cli full_game_test
+#
+# Flow:
+#   1. 18 viewers join with varied points (fills lobby via bus-seat)
+#   2. Lobby players auto-become angels when game starts
+#   3. Game starts → 3s countdown → fighting
+#   4. Normal wave → likes during fight → hard wave → boss wave
+#   5. Final boss fight
+
+# ── Phase 1 — Viewers enter with points ─────────────────────────────────
+# High earners (gifter slots 1-7)
+join SakuraBlade
+like 320
+join Raven_Night
+like 290
+join AetherKing
+like 260
+join LunaStar_99
+like 240
+join Zer0_Cool
+like 220
+join PhantomX
+gift rose 5
+join CrimsonTide
+gift donut 2
+
+# Mid pack (gifter slots 8-13)
+join Novaflare
+like 180
+join ShadowWeaver
+like 160
+join Celestia_M
+gift rose 3
+join BlazeFury
+like 140
+join FrostByte
+like 130
+join VoidWalker
+like 120
+
+# Wildcard slots (14-18) — active non-gifters
+join StormChaser
+like 100
+join LunarEclipse
+like 90
+join Phoenix_Rise
+like 80
+join ThunderStrike
+like 70
+join AquaHeart
+like 60
+
+# ── Phase 2 — Late joiners (won't make top 18, tests overflow) ──────────
+join DuskRider
+like 50
+join EmberGlow
+like 40
+join SilverFang
+like 30
+
+# ── Phase 3 — Start match, lobby players auto-deploy as angels ──────────
+sleep 2
+
+# Start the game (triggers 3s countdown → fighting)
+sleep 1
+go
+
+# ── Phase 4 — Countdown, then combat waves ──────────────────────────────
+sleep 4
+
+# First wave — normal, right after fight starts
+wave normal
+sleep 3
+
+# Simulate audience likes during battle (non-soldier viewers)
+join DuskRider
+like 25
+join EmberGlow
+like 15
+join SilverFang
+like 10
+sleep 2
+
+# Second wave — normal, keep pressure
+wave
+sleep 3
+
+# Audience keeps engaging
+join DuskRider
+like 30
+sleep 2
+
+# Third wave — hard
+wave hard
+sleep 4
+
+# More audience activity
+join EmberGlow
+like 20
+join SilverFang
+like 15
+sleep 3
+
+# Fourth wave — boss, the big one
+wave boss
+sleep 2
+
+# Final audience surge
+join DuskRider
+gift donut 1
+join EmberGlow
+like 30
+join SilverFang
+like 20

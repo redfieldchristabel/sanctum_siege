@@ -279,6 +279,15 @@ async function runPreset(name: string): Promise<void> {
   const lines = content.split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
 
   for (const line of lines) {
+    // Support sleep <seconds> — pauses execution for a given duration
+    const sleepMatch = line.match(/^sleep\s+(\d+(?:\.\d+)?)\s*(?:s(?:ec(?:onds?)?)?)?$/i);
+    if (sleepMatch) {
+      const ms = Math.round(parseFloat(sleepMatch[1]!) * 1000);
+      console.log(`  💤 Sleeping ${sleepMatch[1]}s...`);
+      await new Promise((r) => setTimeout(r, ms));
+      continue;
+    }
+
     const ok = executeLine(line);
     if (!ok) console.log(`  ? Skipped: "${line}"`);
     await new Promise((r) => setTimeout(r, 300));

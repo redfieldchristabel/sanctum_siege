@@ -115,9 +115,17 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
 
   void _enterBattle() {
     _relay.dispose();
+    // Extract lobby player usernames from filled party slots
+    final usernames = ctrl.partySlots
+        .where((p) => p != null)
+        .map((p) => p!.username)
+        .toList();
+    print('[lobby] Entering battle with ${usernames.length} elite soldiers');
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => GameWidget(game: SanctumSiegeGame()),
+        builder: (_) => GameWidget(
+          game: SanctumSiegeGame(lobbyUsernames: usernames),
+        ),
       ),
     );
   }
@@ -293,7 +301,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          childAspectRatio: 4.0,
+          childAspectRatio: 3.8,
           crossAxisSpacing: 6,
           mainAxisSpacing: 4,
         ),
@@ -338,16 +346,16 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
             Text(
               '$rank.',
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 12,
                 fontWeight: FontWeight.w300,
                 color: _mediumBrown.withValues(alpha: 0.4),
               ),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 6),
             Text(
               'Awaiting Hero...',
               style: TextStyle(
-                fontSize: 8,
+                fontSize: 10,
                 fontStyle: FontStyle.italic,
                 color: _mediumBrown.withValues(alpha: 0.35),
               ),
@@ -399,7 +407,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
           children: [
             // Rank badge
             SizedBox(
-              width: 22,
+              width: 28,
               child: isTop3
                   ? Icon(
                       rank == 1
@@ -407,23 +415,23 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                           : rank == 2
                               ? Icons.star
                               : Icons.star_half,
-                      size: 14,
+                      size: 18,
                       color: borderColor,
                     )
                   : Text(
                       '$rank',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: _darkBrown.withValues(alpha: 0.6),
                       ),
                     ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             // Avatar
             Container(
-              width: 22,
-              height: 22,
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: player.isGifter
@@ -432,7 +440,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                     : const LinearGradient(
                         colors: [Color(0xFF7B61FF), Color(0xFF00BCD4)]),
                 border: isTop3
-                    ? Border.all(color: _gold, width: 1.2)
+                    ? Border.all(color: _gold, width: 1.5)
                     : null,
               ),
               child: Center(
@@ -441,14 +449,14 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                       ? player.username[0].toUpperCase()
                       : '?',
                   style: const TextStyle(
-                    fontSize: 10,
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             // Username + points
             Expanded(
               child: Column(
@@ -466,7 +474,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 14,
                               fontWeight: FontWeight.w700,
                               color: _darkBrown,
                               height: 1.2,
@@ -479,7 +487,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                           padding: const EdgeInsets.only(left: 3),
                           child: Icon(
                             Icons.diamond,
-                            size: 11,
+                            size: 13,
                             color: _gold,
                           ),
                         ),
@@ -487,15 +495,15 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                   ),
                   Row(
                     children: [
-                      Icon(Icons.favorite, size: 7, color: _gold),
-                      const SizedBox(width: 2),
+                      Icon(Icons.favorite, size: 9, color: _gold),
+                      const SizedBox(width: 3),
                       FittedBox(
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerLeft,
                         child: Text(
                           '${player.points}',
                           style: TextStyle(
-                            fontSize: 9,
+                            fontSize: 12,
                             fontWeight: FontWeight.w700,
                             color: _mediumBrown,
                           ),

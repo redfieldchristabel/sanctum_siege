@@ -23,6 +23,11 @@ enum GamePhase { idle, countdown, fighting, gameOver, victory }
 class SanctumSiegeGame extends FlameGame {
   late final RelayClient _relay;
 
+  /// Usernames of the 18 elite soldiers from the lobby.
+  final List<String> _lobbyUsernames;
+
+  SanctumSiegeGame({List<String> lobbyUsernames = const []})
+      : _lobbyUsernames = lobbyUsernames;
   GamePhase _phase = GamePhase.idle;
   double _countdownTimer = 0;
   static const double countdownDuration = 3.0; // 7 in prod
@@ -56,6 +61,14 @@ class SanctumSiegeGame extends FlameGame {
     world.add(DevilKing()..position = Vector2(360, 70));
     // (rampart guards removed — only spawn via wave) 
 
+    // Spawn angels from lobby-selected players
+    if (_lobbyUsernames.isNotEmpty) {
+      print('[game] Spawning ${_lobbyUsernames.length} elite soldiers from lobby');
+      for (final name in _lobbyUsernames) {
+        _spawnAngelFromLobby(name);
+      }
+    }
+
     // Relay
     _relay = RelayClient(
       url: 'ws://localhost:8080',
@@ -63,7 +76,12 @@ class SanctumSiegeGame extends FlameGame {
     );
     _relay.connect();
 
-    print('[game] ★ IDLE — Waiting for admin to start game');
+    if (_lobbyUsernames.isNotEmpty) {
+      print('[game] ★ Lobby deployed — auto-starting countdown');
+      _startCountdown();
+    } else {
+      print('[game] ★ IDLE — Waiting for admin to start game');
+    }
   }
 
   // ─── UPDATE LOOP ──────────────────────────────────────────
@@ -119,8 +137,8 @@ class SanctumSiegeGame extends FlameGame {
   // ─── COMBAT (CoC-style: walk toward nearest enemy, stop to shoot) ──
 
   void _processCombat(double dt) {
-    final angels = world.children.whereType<AngelSoldier>().where((c) => c.isMounted).toList();
-    final devils = world.children.whereType<DevilSoldier>().where((c) => c.isMounted).toList();
+    final angels = world.children.whereType<AngelSoldier>().where((c) => c.isMounted && c.isActiveCombatant).toList();
+    final devils = world.children.whereType<DevilSoldier>().where((c) => c.isMounted && c.isActiveCombatant).toList();
     final queen = world.children.whereType<AngelQueen>().where((c) => c.isMounted).firstOrNull;
     final king = world.children.whereType<DevilKing>().where((c) => c.isMounted).firstOrNull;
 
@@ -226,49 +244,49 @@ class SanctumSiegeGame extends FlameGame {
 
   void _checkProjectileHits() {
     final projectiles = world.children.whereType<Projectile>().where((c) => c.isMounted).toList();
-    final devils = world.children.whereType<DevilSoldier>().where((c) => c.isMounted).toList();
-    final angels = world.children.whereType<AngelSoldier>().where((c) => c.isMounted).toList();
+    final devils = world.children.whereType<DevilSoldier>().where((c) => c.isMounted && c.isActiveCombatant).toList();
+    final angels = world.children.whereType<AngelSoldier>().where((c) => c.isMounted && c.isActiveCombatant).toList();
     final queen = world.children.whereType<AngelQueen>().where((c) => c.isMounted).firstOrNull;
     final king = world.children.whereType<DevilKing>().where((c) => c.isMounted).firstOrNull;
 
     for (final p in projectiles) {
       if (!p.isMounted) continue;
-      bool hit = false;
 
-      for (final d in devils) {
-        if (!d.isMounted) continue;
-        if (p.position.distanceTo(d.position) < 24) {
-          p.removeFromParent();
-          d.takeDamage(1);
-          hit = true;
-          break;
+      if (p.isAngel) {
+        // Angel projectiles hit devils + king
+        for (final d in devils) {
+          if (!d.isMounted) continue;
+          if (p.position.distanceTo(d.position) < 24) {
+            p.removeFromParent();
+            d.takeDamage(1);
+            break;
+          }
         }
-      }
-      if (hit) continue;
+        if (!p.isMounted) continue;
 
-      if (king != null && king.isMounted) {
-        if (p.position.distanceTo(king.position) < 32) {
-          p.removeFromParent();
-          king.takeDamage(1);
-          continue;
+        if (king != null && king.isMounted) {
+          if (p.position.distanceTo(king.position) < 32) {
+            p.removeFromParent();
+            king.takeDamage(1);
+          }
         }
-      }
-
-      for (final a in angels) {
-        if (!a.isMounted) continue;
-        if (p.position.distanceTo(a.position) < 24) {
-          p.removeFromParent();
-          a.takeDamage(1);
-          hit = true;
-          break;
+      } else {
+        // Devil projectiles hit angels + queen
+        for (final a in angels) {
+          if (!a.isMounted) continue;
+          if (p.position.distanceTo(a.position) < 24) {
+            p.removeFromParent();
+            a.takeDamage(1);
+            break;
+          }
         }
-      }
-      if (hit) continue;
+        if (!p.isMounted) continue;
 
-      if (queen != null && queen.isMounted) {
-        if (p.position.distanceTo(queen.position) < 32) {
-          p.removeFromParent();
-          queen.takeDamage(1);
+        if (queen != null && queen.isMounted) {
+          if (p.position.distanceTo(queen.position) < 32) {
+            p.removeFromParent();
+            queen.takeDamage(1);
+          }
         }
       }
     }
@@ -295,13 +313,8 @@ class SanctumSiegeGame extends FlameGame {
 
     switch (event) {
       case StartGameEvent _:
+      case StartMatchEvent _:
         _startCountdown();
-        break;
-
-      case JoinEvent e:
-        final name = e.username;
-        final userId = e.userId;
-        _spawnAngel(userId, name);
         break;
 
       case SpawnWaveEvent e:
@@ -336,6 +349,21 @@ class SanctumSiegeGame extends FlameGame {
     world.add(AngelSoldier(userId: userId, username: username)
       ..position = Vector2(60 + rng.nextDouble() * 600, 900 + rng.nextDouble() * 200));
     print('[game] $username joined → Angel spawned');
+  }
+
+  /// Spawn an elite soldier from the lobby selection.
+  /// Spreads them across the angel spawn zone in 2 rows (frontline + back).
+  void _spawnAngelFromLobby(String username) {
+    final rng = Random();
+    // Generate a deterministic-ish position from username hash for consistency
+    final hash = username.codeUnits.fold(0, (int a, int b) => a + b);
+    final row = (hash % 2) * 100; // 0 or 100 y-offset
+    world.add(AngelSoldier(userId: 'lobby_$username', username: username)
+      ..position = Vector2(
+        40 + (hash * 7.3 % 640), // spread x based on name hash
+        880 + row + rng.nextDouble() * 80,
+      ));
+    print('[game] Elite soldier $username deployed from lobby');
   }
 
   void _spawnDevilWave(String difficulty) {
