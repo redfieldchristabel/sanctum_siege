@@ -31,12 +31,15 @@ const HELP = `
     like [count]     Active user sends likes (adds lobby points)
     gift <name> [c]  Active user sends a gift (adds lobby points)
     comment <text>   Chat comment from active user
+    revive <user>    Send revive request (active user's soldier walks to ghost)
     leave            Active user leaves
 
   Game Admin:
     start / go       Start game (idle → 3s countdown → fight)
+    kill <name>      Instantly kill an angel soldier (for revive testing)
     wave [type]      Spawn devil wave (normal/hard/boss)
     angel <count>    Spawn angels
+    spawn <name>     Spawn a named angel (username matters for revive)
     config <k> <v>   Change game config at runtime
     march            Trigger start-match transition
 
@@ -116,6 +119,15 @@ const commands: CommandEntry[] = [
       return { event: "comment", data: { userId: u.userId, username: u.username, text: text.trim() } };
     },
   },
+  // ── Revive command ──────────────────────────
+  {
+    pattern: /^(?:revive|r)\s+@?(\S+)$/i,
+    build: ([, name]) => {
+      const u = _activeUser ?? { userId: "dev_revive", username: "Dev" };
+      // Sends as a comment event so the game parses it the same way as TikTok chat
+      return { event: "comment", data: { userId: u.userId, username: u.username, text: `revive @${name.trim()}` } };
+    },
+  },
   // ── TikTok event: leave ─────────────────────────
   {
     pattern: /^(?:leave|l)\s*(\S*)$/i,
@@ -126,6 +138,13 @@ const commands: CommandEntry[] = [
     },
   },
   // ── Game admin ──────────────────────────────────
+  {
+    pattern: /^(?:kill|k)\s+(\S+)$/i,
+    build: ([, name]) => ({
+      event: "kill",
+      data: { username: name.trim() },
+    }),
+  },
   {
     pattern: /^(?:game_start|start|begin|go)$/i,
     build: () => ({ event: "game_start", data: {} }),
@@ -142,6 +161,14 @@ const commands: CommandEntry[] = [
     build: ([, count]) => ({
       event: "spawn_angel",
       data: { count: parseInt(count) },
+    }),
+  },
+  // ── Spawn a named angel (for revive testing) ──
+  {
+    pattern: /^(?:spawn|sp)\s+(\S+)$/i,
+    build: ([, name]) => ({
+      event: "spawn_angel",
+      data: { name: name.trim() },
     }),
   },
   {

@@ -1,0 +1,60 @@
+# Revive Dev Test — spawns named soldiers, kills one, revives it.
+#
+# Usage: docker compose run --rm cli revive_test
+#
+# Flow:
+#   1. 3 viewers join lobby (Alice, Bob, Charlie)
+#   2. Lobby → battle transition with those 3 soldiers
+#   3. "kill Alice" instantly creates a ghost (no waiting for combat)
+#   4. "join Bob" sets active user to Bob (alive soldier)
+#   5. "revive @Alice" → Bob's soldier walks to Alice's ghost
+#   6. "like 5 + like 5" → 10 likes → UFO beam → Alice revives
+
+# Phase 1 — Named viewers join with some points
+join Alice
+like 50
+join Bob
+like 40
+join Charlie
+like 30
+
+# Phase 2 — Start match (lobby → game with these 3 soldiers)
+sleep 1
+go
+
+# Wait for lobby transition (1.5s) + countdown (3s)
+sleep 5
+
+# Phase 3 — Kill Alice instantly (dev command, no devils needed)
+kill Alice
+sleep 1
+
+# Phase 4 — Revive test
+# Set active user to Bob
+join Bob
+sleep 1
+
+# Bob sends revive request for Alice
+revive @Alice
+
+# Bob walks to Alice (~8s at 35px/s). Likes only count after arrival.
+sleep 8
+like 5
+sleep 1
+like 5
+like 1
+like 1
+like 1
+like 1
+like 1
+like 1
+like 1
+sleep 1
+
+# Alice should revive with UFO beam!
+sleep 3
+
+# Phase 5 — More combat for fun
+wave normal
+sleep 3
+wave boss

@@ -55,7 +55,8 @@ class SpawnWaveEvent extends RelayEvent {
 
 class SpawnAngelEvent extends RelayEvent {
   final int count;
-  const SpawnAngelEvent(this.count);
+  final String? name;
+  const SpawnAngelEvent(this.count, [this.name]);
 }
 
 class StartGameEvent extends RelayEvent {
@@ -92,6 +93,12 @@ class LobbyPointsEvent extends RelayEvent {
 
 class StartMatchEvent extends RelayEvent {
   const StartMatchEvent();
+}
+
+/// Dev command: instantly kill an angel by username.
+class KillEvent extends RelayEvent {
+  final String username;
+  const KillEvent(this.username);
 }
 
 // ── Gift → lobby point conversion ───────────────
@@ -181,6 +188,7 @@ class RelayClient {
         'spawn_wave' => SpawnWaveEvent(data['difficulty'] as String?),
         'spawn_angel' => SpawnAngelEvent(
             (data['count'] as num?)?.toInt() ?? 1,
+            data['name'] as String?,
           ),
         'game_start' => const StartGameEvent(),
         'dev_config' => DevConfigEvent(
@@ -199,6 +207,7 @@ class RelayClient {
             (data['points'] as num?)?.toInt() ?? 0,
           ),
         'start_match' => const StartMatchEvent(),
+        'kill' => KillEvent(data['username'] as String? ?? ''),
         _ => null,
       };
     } catch (e) {
