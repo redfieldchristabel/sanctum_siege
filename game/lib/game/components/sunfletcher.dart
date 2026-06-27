@@ -6,6 +6,7 @@ import 'angel_soldier.dart';
 /// Sunfletcher — ranged angel class. Uses pixel art sprite sheet.
 /// Swaps `this.sprite` each frame via manual timer.
 /// No child components — single render pass.
+/// Ghost sprite is swapped in by AngelSoldier.takeDamage().
 class Sunfletcher extends AngelSoldier {
   SpriteAnimation? _anim;
   double _animTimer = 0;
@@ -27,6 +28,12 @@ class Sunfletcher extends AngelSoldier {
       ),
     );
     sprite = _anim!.frames[0].sprite;
+  }
+
+  @override
+  void onRevive() {
+    _animTimer = 0;
+    _currentFrame = 0;
   }
 
   @override

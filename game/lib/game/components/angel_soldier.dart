@@ -8,6 +8,9 @@ enum SoldierState { alive, ghost, dead, burning }
 /// Base class for all angel soldiers.
 /// Extends SpriteComponent — loads default orb sprite via [loadVisuals()].
 /// Subclasses override [loadVisuals()] to swap in custom sprites.
+///
+/// Ghost: swaps to `_ghostSprite` on death (via `SpriteComponent.render()`).
+/// Revive: restores the original sprite from `_defaultSprite`.
 abstract class AngelSoldier extends SpriteComponent {
   final String userId;
   final String username;
@@ -32,8 +35,9 @@ abstract class AngelSoldier extends SpriteComponent {
   double reviveProgress = 0.0;
   double reviveBeamTimer = 0;
 
-  // ── Ghost sprite ──
+  // ── Sprites ──
   Sprite? _ghostSprite;
+  Sprite? _defaultSprite;
 
   // ── Melee overrides ──
   bool get isMelee => false;
@@ -55,11 +59,15 @@ abstract class AngelSoldier extends SpriteComponent {
     sprite = await Sprite.load('default_soldier.png');
   }
 
+  /// Hook called after [revive()] — subclass resets animation state here.
+  void onRevive() {}
+
   @override
   Future<void> onLoad() async {
     await super.onLoad();
     anchor = Anchor.bottomCenter;
     await loadVisuals();
+    _defaultSprite = sprite;
     _ghostSprite = await Sprite.load('ghost_soul.png');
   }
 
@@ -89,6 +97,10 @@ abstract class AngelSoldier extends SpriteComponent {
     isBeingRevived = false;
     reviveBeamTimer = 0;
     reviveProgress = 0;
+    // Restore default visuals — ghost sprite swap is undone
+    sprite = _defaultSprite;
+    paint.color = const Color(0xFFFFFFFF);
+    onRevive();
   }
 
   bool takeDamage(int amount) {
@@ -96,6 +108,8 @@ abstract class AngelSoldier extends SpriteComponent {
     hp -= amount;
     if (hp <= 0) {
       state = SoldierState.ghost;
+      // Swap to ghost soul sprite — SpriteComponent.render() draws it natively
+      sprite = _ghostSprite;
       return true;
     }
     return false;
@@ -157,7 +171,7 @@ abstract class AngelSoldier extends SpriteComponent {
   }
 
   // ── Render — sprite is drawn by SpriteComponent.render() ──
-  // Overlays (name, HP, magic circle, ghost) go in afterChildrenRendered.
+  // Overlays (name, HP, magic circle, ghost name) go in afterChildrenRendered.
 
   @override
   void afterChildrenRendered(Canvas canvas) {
@@ -170,9 +184,9 @@ abstract class AngelSoldier extends SpriteComponent {
       } else if (isBeingRevived) {
         renderMagicCircle(canvas);
         renderReviveProgress(canvas, reviveProgress);
-        renderGhost(canvas);
+        renderGhostLabel(canvas);
       } else {
-        renderGhost(canvas);
+        renderGhostLabel(canvas);
       }
       return;
     }
@@ -254,20 +268,12 @@ abstract class AngelSoldier extends SpriteComponent {
           .createShader(Rect.fromLTWH(cx - bw, -80, bw * 2, size.y + 60)));
   }
 
-  /// Ghost soul sprite — drawn with translucency on top of the soldier's sprite.
-  void renderGhost(Canvas canvas) {
-    if (_ghostSprite == null) return;
-    final cx = size.x / 2;
+  /// Ghost name label — drawn above the ghost soul sprite (which renders via
+  /// SpriteComponent's built-in sprite pass after swap in takeDamage()).
+  void renderGhostLabel(Canvas canvas) {
     final drift = sin(time * 1.2) * 2.0;
-    final twinkle = sin(time * 2.0) * 0.05 + 0.4;
     canvas.save();
-    canvas.translate(cx + drift, size.y);
-    _ghostSprite!.render(
-      canvas,
-      size: size,
-      overridePaint: Paint()..color = const Color(0x99AACCFF).withValues(alpha: twinkle),
-    );
-    // Ghost name label
+    canvas.translate(size.x / 2 + drift, 0);
     final ns = TextStyle(color: const Color(0x88AACCFF), fontSize: 8, fontWeight: FontWeight.bold,
       shadows: [const Shadow(color: Color(0x44000000), blurRadius: 2, offset: Offset(1, 1))]);
     final tp = TextPainter(text: TextSpan(text: username.length > 6 ? '${username.substring(0, 6)}..' : username, style: ns), textDirection: TextDirection.ltr)..layout();
