@@ -13,7 +13,7 @@ class AngelMelee extends AngelSoldier {
   bool get isMelee => true;
 
   @override
-  double get meleeRange => 60.0;
+  double get meleeRange => 30.0;
 
   @override
   int get meleeDamage => 2;

@@ -498,7 +498,7 @@ class SanctumSiegeGame extends FlameGame {
   void _processCombat(double dt) {
     final angels = world.children
         .whereType<AngelSoldier>()
-        .where((c) => c.isMounted && c.isActiveCombatant)
+        .where((c) => c.isMounted && c.isActiveCombatant && !c.isMelee)
         .toList();
     // Revivers are excluded from combat (no walk/shoot) but ARE targetable
     final allAliveAngels = world.children
