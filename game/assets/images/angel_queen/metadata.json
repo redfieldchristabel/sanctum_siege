@@ -1,0 +1,62 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "a35675d0-bad7-431b-891e-fea416cc61b9",
+        "name": "\"A high-quality 2D pixel art",
+        "prompt": "\"A high-quality 2D pixel art sprite of a beautiful and slightly alluring Angel Queen, based on image_0.png. The character retains her long platinum blonde hair, striking red eyes, and barefoot stance, but is now adorned with a majestic golden crown featuring red gems. She stands confidently, revealing large, intricate feathery angel wings with gold accents behind her. Her original white gown with high slits is enhanced with a slightly more revealing, form-fitting bodice design, showcasing her figure while retaining the white and gold aesthetic and harness details. She holds the ornate staff with a burning golden flame in her right hand, while her left hand gathers a swirl of celestial light. The background is a heavenly throne room in the clouds with marble pillars and gold filigree.\"",
+        "size": {
+          "width": 128,
+          "height": 128
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-06-26T23:24:52.780176+00:00"
+      },
+      "folder": "A_high-quality_2D_pixel_art",
+      "frames": {
+        "rotations": {
+          "south": "A_high-quality_2D_pixel_art/rotations/south.png",
+          "south-east": "A_high-quality_2D_pixel_art/rotations/south-east.png",
+          "east": "A_high-quality_2D_pixel_art/rotations/east.png",
+          "north-east": "A_high-quality_2D_pixel_art/rotations/north-east.png",
+          "north": "A_high-quality_2D_pixel_art/rotations/north.png",
+          "north-west": "A_high-quality_2D_pixel_art/rotations/north-west.png",
+          "west": "A_high-quality_2D_pixel_art/rotations/west.png",
+          "south-west": "A_high-quality_2D_pixel_art/rotations/south-west.png"
+        },
+        "animations": {
+          "Breathing_Idle": {
+            "south": [
+              "A_high-quality_2D_pixel_art/animations/Breathing_Idle/south/frame_000.png",
+              "A_high-quality_2D_pixel_art/animations/Breathing_Idle/south/frame_001.png",
+              "A_high-quality_2D_pixel_art/animations/Breathing_Idle/south/frame_002.png",
+              "A_high-quality_2D_pixel_art/animations/Breathing_Idle/south/frame_003.png"
+            ]
+          },
+          "Both_of_her_hands_are_raised_and_clasped_together": {
+            "south": [
+              "A_high-quality_2D_pixel_art/animations/Both_of_her_hands_are_raised_and_clasped_together/south/frame_000.png",
+              "A_high-quality_2D_pixel_art/animations/Both_of_her_hands_are_raised_and_clasped_together/south/frame_001.png",
+              "A_high-quality_2D_pixel_art/animations/Both_of_her_hands_are_raised_and_clasped_together/south/frame_002.png",
+              "A_high-quality_2D_pixel_art/animations/Both_of_her_hands_are_raised_and_clasped_together/south/frame_003.png",
+              "A_high-quality_2D_pixel_art/animations/Both_of_her_hands_are_raised_and_clasped_together/south/frame_004.png",
+              "A_high-quality_2D_pixel_art/animations/Both_of_her_hands_are_raised_and_clasped_together/south/frame_005.png",
+              "A_high-quality_2D_pixel_art/animations/Both_of_her_hands_are_raised_and_clasped_together/south/frame_006.png",
+              "A_high-quality_2D_pixel_art/animations/Both_of_her_hands_are_raised_and_clasped_together/south/frame_007.png",
+              "A_high-quality_2D_pixel_art/animations/Both_of_her_hands_are_raised_and_clasped_together/south/frame_008.png",
+              "A_high-quality_2D_pixel_art/animations/Both_of_her_hands_are_raised_and_clasped_together/south/frame_009.png",
+              "A_high-quality_2D_pixel_art/animations/Both_of_her_hands_are_raised_and_clasped_together/south/frame_010.png",
+              "A_high-quality_2D_pixel_art/animations/Both_of_her_hands_are_raised_and_clasped_together/south/frame_011.png",
+              "A_high-quality_2D_pixel_art/animations/Both_of_her_hands_are_raised_and_clasped_together/south/frame_012.png"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "export_version": "3.0",
+  "export_date": "2026-06-27T00:58:09.453572"
+}

@@ -1,4 +1,4 @@
-# Full Game Test — Fills lobby, spawns angels, runs combat waves end-to-end.
+run # Full Game Test — Fills lobby, spawns angels, runs combat waves end-to-end.
 #
 # Usage: docker compose run --rm cli full_game_test
 #
@@ -60,15 +60,19 @@ like 40
 join SilverFang
 like 30
 
-# ── Phase 3 — Start match, lobby players auto-deploy as angels ──────────
+# ── Phase 3 — Class assignment then match start ─────────────────
 sleep 2
 
-# Start the game (triggers 3s countdown → fighting)
+# First go: enters ranking → class assignment phase
 sleep 1
 go
 
-# ── Phase 4 — Countdown, then combat waves ──────────────────────────────
-sleep 4
+# Wait 5s for top-5 to pick classes (or not), then skip to battle
+sleep 5
+go
+
+# ── Phase 4 — Lobby transition (1.5s) + countdown (3s) ─────────
+sleep 5
 
 # First wave — normal, right after fight starts
 wave normal

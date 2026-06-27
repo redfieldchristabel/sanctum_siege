@@ -18,8 +18,12 @@ like 40
 join Charlie
 like 30
 
-# Phase 2 — Start match (lobby → game with these 3 soldiers)
+# Phase 2 — Class assignment then match start
 sleep 1
+go
+
+# 5s for class phase (top 5 can !knight or !archer), then skip to battle
+sleep 5
 go
 
 # Wait for lobby transition (1.5s) + countdown (3s)

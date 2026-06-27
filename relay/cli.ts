@@ -40,6 +40,7 @@ const HELP = `
     wave [type]      Spawn devil wave (normal/hard/boss)
     angel <count>    Spawn angels
     spawn <name>     Spawn a named angel (username matters for revive)
+    melee <name>     Spawn a named melee-class soldier (tank, close-range)
     config <k> <v>   Change game config at runtime
     march            Trigger start-match transition
 
@@ -169,6 +170,14 @@ const commands: CommandEntry[] = [
     build: ([, name]) => ({
       event: "spawn_angel",
       data: { name: name.trim() },
+    }),
+  },
+  // ── Spawn a named melee soldier ──
+  {
+    pattern: /^(?:melee|m)\s+(\S+)$/i,
+    build: ([, name]) => ({
+      event: "spawn_angel",
+      data: { name: name.trim(), class: "melee" },
     }),
   },
   {

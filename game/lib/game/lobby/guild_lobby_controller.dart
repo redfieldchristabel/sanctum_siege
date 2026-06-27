@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 
 // ══════════════════════════════════════════════════
+//  Phases
+// ══════════════════════════════════════════════════
+
+enum LobbyPhase { ranking, classAssignment, transitioning }
+
+// ══════════════════════════════════════════════════
 //  Data Models
 // ══════════════════════════════════════════════════
 
@@ -10,11 +16,15 @@ class LobbyPlayer {
   int points;
   bool isGifter; // true = ranks 1-13 (points slot), false = ranks 14-18 (wildcard)
 
+  /// Assigned class: 'sunfletcher' or 'melee'. Null until class phase resolves.
+  String? soldierClass;
+
   LobbyPlayer({
     required this.username,
     required this.profilePicUrl,
     required this.points,
     required this.isGifter,
+    this.soldierClass,
   });
 }
 
@@ -38,11 +48,17 @@ class PointPopup {
 // ══════════════════════════════════════════════════
 
 class GuildLobbyController extends ChangeNotifier {
+  /// Current lobby phase.
+  LobbyPhase phase = LobbyPhase.ranking;
+
   /// 20 party slots. null = empty (awaiting hero).
   final List<LobbyPlayer?> partySlots = List.filled(18, null);
 
   /// Current countdown seconds (displayed on screen).
   int countdownSeconds = 180;
+
+  /// Countdown for the class assignment phase (30s).
+  int classTimerSeconds = 30;
 
   /// True while the match-transition animation is playing.
   bool isTransitioning = false;
@@ -206,6 +222,73 @@ class GuildLobbyController extends ChangeNotifier {
       onMatchReady?.call();
       onTransitionComplete();
     });
+  }
+
+  // ── Class Assignment Phase ────────────────────────
+
+  /// Transition from ranking to class assignment phase.
+  void startClassAssignment() {
+    phase = LobbyPhase.classAssignment;
+    classTimerSeconds = 30;
+    _assignRandomClasses();
+    notifyListeners();
+  }
+
+  /// Assign random classes to all players (50/50 split).
+  void _assignRandomClasses() {
+    final filled = partySlots.where((p) => p != null).cast<LobbyPlayer>().toList();
+    final classes = <String>[];
+    for (int i = 0; i < filled.length; i++) {
+      classes.add(i < filled.length ~/ 2 ? 'sunfletcher' : 'melee');
+    }
+    classes.shuffle();
+    for (int i = 0; i < filled.length; i++) {
+      filled[i].soldierClass = classes[i];
+    }
+  }
+
+  /// Set a player's class (top 5 players only).
+  void setPlayerClass(String username, String soldierClass) {
+    if (phase != LobbyPhase.classAssignment) return;
+    final idx = partySlots.indexWhere((p) => p?.username == username);
+    if (idx == -1 || idx >= 5) return; // only top 5 can choose
+    if (soldierClass != 'sunfletcher' && soldierClass != 'melee') return;
+
+    // Check this class isn't already taken by another top-5
+    final alreadyAssigned = partySlots.where((p) =>
+        p != null && p.soldierClass == soldierClass && partySlots.indexOf(p) < 5
+    ).length;
+    if (alreadyAssigned >= 1) return; // already taken
+
+    partySlots[idx]!.soldierClass = soldierClass;
+    print('[lobby] ${partySlots[idx]!.username} chose $soldierClass');
+    notifyListeners();
+  }
+
+  /// Called when the 30s class timer expires.
+  void finalizeClasses() {
+    // Any top-5 without a chosen class keep their random assignment
+    phase = LobbyPhase.transitioning;
+    notifyListeners();
+  }
+
+  /// Get the class for a given username.
+  String? getClassFor(String username) {
+    return partySlots
+        .where((p) => p?.username == username)
+        .map((p) => p!.soldierClass)
+        .firstOrNull;
+  }
+
+  /// Build a map of username → class for the battle pipeline.
+  Map<String, String> get classAssignments {
+    final map = <String, String>{};
+    for (final p in partySlots) {
+      if (p != null && p.soldierClass != null) {
+        map[p.username] = p.soldierClass!;
+      }
+    }
+    return map;
   }
 
   // ── Internal ──────────────────────────────────────

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import 'guild_lobby_controller.dart';
@@ -75,10 +76,53 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
         ctrl.clearLobby();
       case StartMatchEvent _:
       case StartGameEvent _:
-        ctrl.startMatchTransition(() {});
+        if (ctrl.phase == LobbyPhase.ranking) {
+          ctrl.startClassAssignment();
+          _startClassTimer();
+        } else if (ctrl.phase == LobbyPhase.classAssignment) {
+          // Second go — skip remaining class time
+          _classTimer?.cancel();
+          ctrl.finalizeClasses();
+          ctrl.startMatchTransition(() {});
+        }
+      case CommentEvent e:
+        _handleClassCommand(e);
       default:
         break;
     }
+  }
+
+  /// Parse !class commands during the class assignment phase.
+  void _handleClassCommand(CommentEvent e) {
+    if (ctrl.phase != LobbyPhase.classAssignment) return;
+    final text = e.text.trim().toLowerCase();
+    final match = RegExp(r'^!(archer|knight|melee|wizard)$').firstMatch(text);
+    if (match == null) return;
+    final chosen = switch (match.group(1)!) {
+      'knight' || 'melee' => 'melee',
+      _ => 'sunfletcher', // sunfletcher or future wizard
+    };
+    ctrl.setPlayerClass(e.username, chosen);
+  }
+
+  /// Start the 30-second class assignment countdown timer.
+  Timer? _classTimer;
+
+  void _startClassTimer() {
+    _classTimer?.cancel();
+    _classTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (ctrl.phase != LobbyPhase.classAssignment) {
+        t.cancel();
+        return;
+      }
+      ctrl.classTimerSeconds--;
+      ctrl.notifyListeners();
+      if (ctrl.classTimerSeconds <= 0) {
+        t.cancel();
+        ctrl.finalizeClasses();
+        ctrl.startMatchTransition(() {});
+      }
+    });
   }
 
   void _fillMockParty() {
@@ -115,16 +159,23 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
 
   void _enterBattle() {
     _relay.dispose();
-    // Extract lobby player usernames from filled party slots
+    _classTimer?.cancel();
+
+    // Extract lobby player usernames and class assignments
     final usernames = ctrl.partySlots
         .where((p) => p != null)
         .map((p) => p!.username)
         .toList();
+    final classMap = ctrl.classAssignments;
     print('[lobby] Entering battle with ${usernames.length} elite soldiers');
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => GameWidget(
-          game: SanctumSiegeGame(lobbyUsernames: usernames),
+          game: SanctumSiegeGame(
+            lobbyUsernames: usernames,
+            classAssignments: classMap,
+          ),
         ),
       ),
     );
@@ -206,7 +257,9 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
               stops: [0.0, 0.5, 1.0],
             ).createShader(bounds),
             child: Text(
-              'ANGEL GUILD',
+              ctrl.phase == LobbyPhase.classAssignment
+                  ? 'CLASS ASSIGNMENT'
+                  : 'ANGEL GUILD',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 20,
@@ -225,7 +278,9 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
           ),
           const SizedBox(height: 2),
           Text(
-            'PARTY SELECTION',
+            ctrl.phase == LobbyPhase.classAssignment
+                ? 'TOP 5: !sunfletcher or !knight in chat'
+                : 'PARTY SELECTION',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 11,
@@ -255,17 +310,18 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
   // ══════════════════════════════════════════════════
 
   Widget _buildTimerBar() {
-    final minutes = ctrl.countdownSeconds ~/ 60;
-    final seconds = ctrl.countdownSeconds % 60;
-    final timeStr =
-        '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    final isClassPhase = ctrl.phase == LobbyPhase.classAssignment;
+    final seconds = isClassPhase ? ctrl.classTimerSeconds : ctrl.countdownSeconds;
+    final minutes = seconds ~/ 60;
+    final remaining = seconds % 60;
+    final timeStr = '${minutes.toString().padLeft(2, '0')}:${remaining.toString().padLeft(2, '0')}';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.schedule, size: 13, color: _mediumBrown),
+          Icon(isClassPhase ? Icons.shield : Icons.schedule, size: 13, color: _mediumBrown),
           const SizedBox(width: 6),
           Text(
             timeStr,
@@ -278,7 +334,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
           ),
           const SizedBox(width: 6),
           Text(
-            'until muster',
+            isClassPhase ? 'to pick class' : 'until muster',
             style: TextStyle(
               fontSize: 9,
               color: _mediumBrown.withValues(alpha: 0.6),
@@ -489,6 +545,19 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                             Icons.diamond,
                             size: 13,
                             color: _gold,
+                          ),
+                        ),
+                      if (player.soldierClass != null)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 3),
+                          child: Icon(
+                            player.soldierClass == 'melee'
+                                ? Icons.shield
+                                : Icons.gps_fixed,
+                            size: 11,
+                            color: player.soldierClass == 'melee'
+                                ? const Color(0xFF4A6FA5)
+                                : const Color(0xFFD4AF37),
                           ),
                         ),
                     ],

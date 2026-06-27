@@ -6,6 +6,8 @@ import 'components/arena_background.dart';
 import 'components/devil_soldier.dart';
 import 'components/devil_king.dart';
 import 'components/angel_soldier.dart';
+import 'components/sunfletcher.dart';
+import 'components/angel_melee.dart';
 import 'components/angel_queen.dart';
 import 'components/projectile.dart';
 
@@ -99,8 +101,13 @@ class SanctumSiegeGame extends FlameGame {
   /// Usernames of the 18 elite soldiers from the lobby.
   final List<String> _lobbyUsernames;
 
-  SanctumSiegeGame({List<String> lobbyUsernames = const []})
-      : _lobbyUsernames = lobbyUsernames;
+  /// Class assignments from the lobby phase (username → 'sunfletcher'/'melee').
+  final Map<String, String> _classAssignments;
+
+  SanctumSiegeGame({
+    this._lobbyUsernames = const [],
+    this._classAssignments = const {},
+  });
   GamePhase _phase = GamePhase.idle;
   double _countdownTimer = 0;
   static const double countdownDuration = 3.0; // 7 in prod
@@ -138,24 +145,23 @@ class SanctumSiegeGame extends FlameGame {
     world.add(ArenaBackground());
 
     // Queen (passive, always visible)
-    world.add(AngelQueen()..position = Vector2(360, 1220));
+    world.add(AngelQueen()..position = Vector2(360, 1255));
     // King (visible but doesn't fight until fighting phase)
     world.add(DevilKing()..position = Vector2(360, 70));
-    // (rampart guards removed — only spawn via wave) 
+    // (rampart guards removed — only spawn via wave)
 
     // Spawn angels from lobby-selected players
     if (_lobbyUsernames.isNotEmpty) {
-      print('[game] Spawning ${_lobbyUsernames.length} elite soldiers from lobby');
+      print(
+        '[game] Spawning ${_lobbyUsernames.length} elite soldiers from lobby',
+      );
       for (final name in _lobbyUsernames) {
         _spawnAngelFromLobby(name);
       }
     }
 
     // Relay
-    _relay = RelayClient(
-      url: 'ws://localhost:8080',
-      onEvent: _handleEvent,
-    );
+    _relay = RelayClient(url: 'ws://localhost:8080', onEvent: _handleEvent);
     _relay.connect();
 
     if (_lobbyUsernames.isNotEmpty) {
@@ -184,6 +190,7 @@ class SanctumSiegeGame extends FlameGame {
     if (_phase == GamePhase.fighting) {
       _processRevives(dt);
       _processCombat(dt);
+      _processMeleeCombat(dt);
       _checkProjectileHits();
       _checkWinLose();
     }
@@ -196,7 +203,9 @@ class SanctumSiegeGame extends FlameGame {
     _phase = GamePhase.countdown;
     _countdownTimer = countdownDuration;
     _waveQueue.clear();
-    print('[game] ★ COUNTDOWN ${countdownDuration}s — admin, queue your waves!');
+    print(
+      '[game] ★ COUNTDOWN ${countdownDuration}s — admin, queue your waves!',
+    );
   }
 
   void _startFighting() {
@@ -221,9 +230,9 @@ class SanctumSiegeGame extends FlameGame {
 
   /// Process all active revive sessions each frame.
   void _processRevives(double dt) {
-    final sessions = List<ReviveSession>.from(_reviveSessions.values)
-        .where((s) => s.isActive)
-        .toList();
+    final sessions = List<ReviveSession>.from(
+      _reviveSessions.values,
+    ).where((s) => s.isActive).toList();
 
     for (final session in sessions) {
       session.elapsed += dt;
@@ -247,9 +256,14 @@ class SanctumSiegeGame extends FlameGame {
       // Update each reviver: check alive + distance to ghost
       bool anyAlive = false;
       for (final slot in session.revivers) {
-        final reviver = _findAngelByUserId(slot.userId, username: slot.username);
+        final reviver = _findAngelByUserId(
+          slot.userId,
+          username: slot.username,
+        );
         if (reviver == null || !reviver.isMounted || !reviver.isAlive) {
-          print('[revive] Reviver ${slot.username} died — removed from session');
+          print(
+            '[revive] Reviver ${slot.username} died — removed from session',
+          );
           reviver?.cancelRevive();
           session.removeReviver(slot.userId);
           continue;
@@ -295,23 +309,31 @@ class SanctumSiegeGame extends FlameGame {
 
   /// Find a ghost angel soldier by username.
   AngelSoldier? _findGhost(String username) {
-    return world.children.whereType<AngelSoldier>().where(
-      (c) => c.isMounted && c.state == SoldierState.ghost && c.username == username,
-    ).firstOrNull;
+    return world.children
+        .whereType<AngelSoldier>()
+        .where(
+          (c) =>
+              c.isMounted &&
+              c.state == SoldierState.ghost &&
+              c.username == username,
+        )
+        .firstOrNull;
   }
 
   /// Find an alive angel soldier by userId, falling back to username for dev.
   AngelSoldier? _findAngelByUserId(String userId, {String? username}) {
     // Try exact userId first (real TikTok flow)
-    final exact = world.children.whereType<AngelSoldier>().where(
-      (c) => c.isMounted && c.isAlive && c.userId == userId,
-    ).firstOrNull;
+    final exact = world.children
+        .whereType<AngelSoldier>()
+        .where((c) => c.isMounted && c.isAlive && c.userId == userId)
+        .firstOrNull;
     if (exact != null) return exact;
     // Fallback: lookup by username (dev CLI flow where userId != soldier.userId)
     if (username != null) {
-      return world.children.whereType<AngelSoldier>().where(
-        (c) => c.isMounted && c.isAlive && c.username == username,
-      ).firstOrNull;
+      return world.children
+          .whereType<AngelSoldier>()
+          .where((c) => c.isMounted && c.isAlive && c.username == username)
+          .firstOrNull;
     }
     return null;
   }
@@ -333,7 +355,11 @@ class SanctumSiegeGame extends FlameGame {
 
   /// Start a revive session when a viewer types "revive @username".
   /// Multiple viewers can revive the same ghost — their soldiers pool likes.
-  void _startRevive(String ghostUsername, String reviverUserId, String reviverUsername) {
+  void _startRevive(
+    String ghostUsername,
+    String reviverUserId,
+    String reviverUsername,
+  ) {
     // Check ghost exists
     final ghost = _findGhost(ghostUsername);
     if (ghost == null) {
@@ -345,12 +371,16 @@ class SanctumSiegeGame extends FlameGame {
     final existing = _reviveSessions[ghostUsername];
     if (existing != null) {
       existing.addReviver(reviverUserId, reviverUsername);
-      print('[revive] $reviverUsername joins existing revive for $ghostUsername (${existing.revivers.length} revivers)');
+      print(
+        '[revive] $reviverUsername joins existing revive for $ghostUsername (${existing.revivers.length} revivers)',
+      );
       return;
     }
 
     final isOwner = ghost.userId == reviverUserId;
-    print('[revive] ${isOwner ? "OWNER" : "VIEWER"} $reviverUsername → revive $ghostUsername');
+    print(
+      '[revive] ${isOwner ? "OWNER" : "VIEWER"} $reviverUsername → revive $ghostUsername',
+    );
 
     _reviveSessions[ghostUsername] = ReviveSession(
       ghostUsername: ghostUsername,
@@ -366,12 +396,16 @@ class SanctumSiegeGame extends FlameGame {
   void _contributeLikesToRevive(String userId, int count) {
     for (final session in _reviveSessions.values) {
       if (!session.isActive) continue;
-      final slot = session.revivers.where((r) => r.userId == userId).firstOrNull;
+      final slot = session.revivers
+          .where((r) => r.userId == userId)
+          .firstOrNull;
       if (slot == null) continue;
       // Only count if at least one reviver is in revive range
       if (!session.anyInRange) return;
       session.likesAccumulated += count;
-      print('[revive] +$count likes → ${session.ghostUsername} (${session.likesAccumulated}/${session.threshold})');
+      print(
+        '[revive] +$count likes → ${session.ghostUsername} (${session.likesAccumulated}/${session.threshold})',
+      );
     }
   }
 
@@ -387,7 +421,9 @@ class SanctumSiegeGame extends FlameGame {
     if (lower == 'cancel' || lower == 'cancel revive') {
       for (final session in _reviveSessions.values) {
         if (!session.isActive) continue;
-        final slot = session.revivers.where((r) => r.userId == e.userId).firstOrNull;
+        final slot = session.revivers
+            .where((r) => r.userId == e.userId)
+            .firstOrNull;
         if (slot == null) continue;
         final reviver = _findAngelByUserId(e.userId, username: e.username);
         reviver?.cancelRevive();
@@ -397,13 +433,18 @@ class SanctumSiegeGame extends FlameGame {
           final ghost = _findGhost(session.ghostUsername);
           if (ghost != null) ghost.isBeingRevived = false;
         }
-        print('[revive] ${e.username} cancelled — ${session.revivers.length} reviver(s) remain');
+        print(
+          '[revive] ${e.username} cancelled — ${session.revivers.length} reviver(s) remain',
+        );
         break;
       }
       return;
     }
 
-    final match = RegExp(r'^revive\s+@?(\S+)', caseSensitive: false).firstMatch(text);
+    final match = RegExp(
+      r'^revive\s+@?(\S+)',
+      caseSensitive: false,
+    ).firstMatch(text);
     if (match == null) return;
     final ghostUsername = match.group(1)!;
     _startRevive(ghostUsername, e.userId, e.username);
@@ -419,7 +460,9 @@ class SanctumSiegeGame extends FlameGame {
     // Remove this user from any active revive session
     for (final session in _reviveSessions.values) {
       if (!session.isActive) continue;
-      final slot = session.revivers.where((r) => r.userId == userId).firstOrNull;
+      final slot = session.revivers
+          .where((r) => r.userId == userId)
+          .firstOrNull;
       if (slot == null) continue;
       final reviver = _findAngelByUserId(userId, username: slot.username);
       reviver?.cancelRevive();
@@ -429,13 +472,16 @@ class SanctumSiegeGame extends FlameGame {
         final ghost = _findGhost(session.ghostUsername);
         if (ghost != null) ghost.isBeingRevived = false;
       }
-      print('[game] Reviver $userId left — ${session.revivers.length} reviver(s) remain');
+      print(
+        '[game] Reviver $userId left — ${session.revivers.length} reviver(s) remain',
+      );
     }
 
     // Find all soldiers (alive or ghost) owned by this user
-    final soldiers = world.children.whereType<AngelSoldier>().where(
-      (c) => c.isMounted && c.userId == userId,
-    ).toList();
+    final soldiers = world.children
+        .whereType<AngelSoldier>()
+        .where((c) => c.isMounted && c.userId == userId)
+        .toList();
 
     for (final s in soldiers) {
       if (s.isAlive) {
@@ -450,12 +496,27 @@ class SanctumSiegeGame extends FlameGame {
   }
 
   void _processCombat(double dt) {
-    final angels = world.children.whereType<AngelSoldier>().where((c) => c.isMounted && c.isActiveCombatant).toList();
+    final angels = world.children
+        .whereType<AngelSoldier>()
+        .where((c) => c.isMounted && c.isActiveCombatant)
+        .toList();
     // Revivers are excluded from combat (no walk/shoot) but ARE targetable
-    final allAliveAngels = world.children.whereType<AngelSoldier>().where((c) => c.isMounted && c.isAlive).toList();
-    final devils = world.children.whereType<DevilSoldier>().where((c) => c.isMounted && c.isActiveCombatant).toList();
-    final queen = world.children.whereType<AngelQueen>().where((c) => c.isMounted).firstOrNull;
-    final king = world.children.whereType<DevilKing>().where((c) => c.isMounted).firstOrNull;
+    final allAliveAngels = world.children
+        .whereType<AngelSoldier>()
+        .where((c) => c.isMounted && c.isAlive)
+        .toList();
+    final devils = world.children
+        .whereType<DevilSoldier>()
+        .where((c) => c.isMounted && c.isActiveCombatant)
+        .toList();
+    final queen = world.children
+        .whereType<AngelQueen>()
+        .where((c) => c.isMounted)
+        .firstOrNull;
+    final king = world.children
+        .whereType<DevilKing>()
+        .where((c) => c.isMounted)
+        .firstOrNull;
 
     final allAngelTargets = [...devils, if (king != null) king];
     final allDevilTargets = [...allAliveAngels, if (queen != null) queen];
@@ -492,13 +553,34 @@ class SanctumSiegeGame extends FlameGame {
 
     // Fire projectiles
     for (final a in angels) {
-      _updateShooter(dt, a, allAngelTargets, angelRange, angelInterval, isAngel: true);
+      _updateShooter(
+        dt,
+        a,
+        allAngelTargets,
+        angelRange,
+        angelInterval,
+        isAngel: true,
+      );
     }
     for (final d in devils) {
-      _updateShooter(dt, d, allDevilTargets, devilRange, devilInterval, isAngel: false);
+      _updateShooter(
+        dt,
+        d,
+        allDevilTargets,
+        devilRange,
+        devilInterval,
+        isAngel: false,
+      );
     }
     if (king != null) {
-      _updateShooter(dt, king, allDevilTargets, kingRange, kingInterval, isAngel: false);
+      _updateShooter(
+        dt,
+        king,
+        allDevilTargets,
+        kingRange,
+        kingInterval,
+        isAngel: false,
+      );
     }
   }
 
@@ -519,8 +601,71 @@ class SanctumSiegeGame extends FlameGame {
     return bestPos;
   }
 
-  void _updateShooter(double dt, Component shooter, List<Component> targets,
-      double range, double interval, {required bool isAngel}) {
+  /// Process melee-class soldier attacks — direct damage, no projectiles.
+  final Map<Component, double> _meleeTimers = {};
+
+  void _processMeleeCombat(double dt) {
+    final melee = world.children
+        .whereType<AngelMelee>()
+        .where((c) => c.isMounted && c.isActiveCombatant)
+        .toList();
+    final devils = world.children
+        .whereType<DevilSoldier>()
+        .where((c) => c.isMounted && c.isActiveCombatant)
+        .toList();
+    final king = world.children
+        .whereType<DevilKing>()
+        .where((c) => c.isMounted)
+        .firstOrNull;
+
+    final targets = [...devils, if (king != null) king];
+
+    for (final m in melee) {
+      final nearest = _findNearestPos(m.position, targets);
+      if (nearest == null) {
+        m.moveTarget = null; // no enemies — default move up
+        continue;
+      }
+
+      final dist = m.position.distanceTo(nearest);
+      if (dist <= m.meleeRange) {
+        // In range — stop and attack
+        m.moveTarget = m.position.clone();
+        final timer = _meleeTimers.putIfAbsent(m, () => 0);
+        _meleeTimers[m] = timer + dt;
+        if (_meleeTimers[m]! >= m.meleeInterval) {
+          _meleeTimers[m] = 0;
+          // Find nearest enemy component to damage
+          Component? hitTarget;
+          double bestDist = m.meleeRange;
+          for (final t in targets) {
+            if (!t.isMounted) continue;
+            final d = m.position.distanceTo((t as dynamic).position);
+            if (d < bestDist) {
+              bestDist = d;
+              hitTarget = t;
+            }
+          }
+          if (hitTarget != null) {
+            (hitTarget as dynamic).takeDamage(m.meleeDamage);
+            print('[melee] ${m.username} slashes for ${m.meleeDamage} damage');
+          }
+        }
+      } else {
+        // Walk toward nearest enemy
+        m.moveTarget = nearest.clone();
+      }
+    }
+  }
+
+  void _updateShooter(
+    double dt,
+    Component shooter,
+    List<Component> targets,
+    double range,
+    double interval, {
+    required bool isAngel,
+  }) {
     final timer = _shootTimers.putIfAbsent(shooter, () => 0);
     _shootTimers[shooter] = timer + dt;
 
@@ -528,7 +673,9 @@ class SanctumSiegeGame extends FlameGame {
     double closestDist = range;
     for (final t in targets) {
       if (!t.isMounted) continue;
-      final d = (shooter as dynamic).position.distanceTo((t as dynamic).position);
+      final d = (shooter as dynamic).position.distanceTo(
+        (t as dynamic).position,
+      );
       if (d < closestDist) {
         closestDist = d;
         closest = t;
@@ -540,29 +687,48 @@ class SanctumSiegeGame extends FlameGame {
       final sp = (shooter as dynamic).position;
       final tp = (closest as dynamic).position;
       if (isAngel) {
-        world.add(Projectile.angel(
-          startX: sp.x as double,
-          startY: (sp.y as double) - 20,
-          targetX: tp.x as double,
-          targetY: tp.y as double,
-        ));
+        world.add(
+          Projectile.angel(
+            startX: sp.x as double,
+            startY: (sp.y as double) - 20,
+            targetX: tp.x as double,
+            targetY: tp.y as double,
+          ),
+        );
       } else {
-        world.add(Projectile.devil(
-          startX: sp.x as double,
-          startY: (sp.y as double) - 20,
-          targetX: tp.x as double,
-          targetY: tp.y as double,
-        ));
+        world.add(
+          Projectile.devil(
+            startX: sp.x as double,
+            startY: (sp.y as double) - 20,
+            targetX: tp.x as double,
+            targetY: tp.y as double,
+          ),
+        );
       }
     }
   }
 
   void _checkProjectileHits() {
-    final projectiles = world.children.whereType<Projectile>().where((c) => c.isMounted).toList();
-    final devils = world.children.whereType<DevilSoldier>().where((c) => c.isMounted && c.isActiveCombatant).toList();
-    final angels = world.children.whereType<AngelSoldier>().where((c) => c.isMounted && c.isActiveCombatant).toList();
-    final queen = world.children.whereType<AngelQueen>().where((c) => c.isMounted).firstOrNull;
-    final king = world.children.whereType<DevilKing>().where((c) => c.isMounted).firstOrNull;
+    final projectiles = world.children
+        .whereType<Projectile>()
+        .where((c) => c.isMounted)
+        .toList();
+    final devils = world.children
+        .whereType<DevilSoldier>()
+        .where((c) => c.isMounted && c.isActiveCombatant)
+        .toList();
+    final angels = world.children
+        .whereType<AngelSoldier>()
+        .where((c) => c.isMounted && c.isActiveCombatant)
+        .toList();
+    final queen = world.children
+        .whereType<AngelQueen>()
+        .where((c) => c.isMounted)
+        .firstOrNull;
+    final king = world.children
+        .whereType<DevilKing>()
+        .where((c) => c.isMounted)
+        .firstOrNull;
 
     for (final p in projectiles) {
       if (!p.isMounted) continue;
@@ -608,8 +774,14 @@ class SanctumSiegeGame extends FlameGame {
   }
 
   void _checkWinLose() {
-    final queen = world.children.whereType<AngelQueen>().where((c) => c.isMounted).firstOrNull;
-    final king = world.children.whereType<DevilKing>().where((c) => c.isMounted).firstOrNull;
+    final queen = world.children
+        .whereType<AngelQueen>()
+        .where((c) => c.isMounted)
+        .firstOrNull;
+    final king = world.children
+        .whereType<DevilKing>()
+        .where((c) => c.isMounted)
+        .firstOrNull;
 
     if (queen == null && _phase == GamePhase.fighting) {
       _phase = GamePhase.gameOver;
@@ -646,7 +818,11 @@ class SanctumSiegeGame extends FlameGame {
 
       case SpawnAngelEvent e:
         if (e.name != null) {
-          _spawnAngel('spawn_${e.name}', e.name!);
+          if (e.isMelee) {
+            _spawnMelee(e.name!, e.name!);
+          } else {
+            _spawnAngel('spawn_${e.name}', e.name!);
+          }
         } else {
           for (int i = 0; i < e.count; i++) {
             _spawnAngel('dev_$i', 'Dev Angel');
@@ -669,9 +845,10 @@ class SanctumSiegeGame extends FlameGame {
         break;
 
       case KillEvent e:
-        final soldier = world.children.whereType<AngelSoldier>().where(
-          (c) => c.isMounted && c.isAlive && c.username == e.username,
-        ).firstOrNull;
+        final soldier = world.children
+            .whereType<AngelSoldier>()
+            .where((c) => c.isMounted && c.isAlive && c.username == e.username)
+            .firstOrNull;
         if (soldier != null) {
           soldier.state = SoldierState.ghost;
           print('[game] ${e.username} killed by dev command');
@@ -693,36 +870,66 @@ class SanctumSiegeGame extends FlameGame {
 
   void _spawnAngel(String userId, String username) {
     final rng = Random();
-    world.add(AngelSoldier(userId: userId, username: username)
-      ..position = Vector2(60 + rng.nextDouble() * 600, 900 + rng.nextDouble() * 200));
-    print('[game] $username joined → Angel spawned');
+    world.add(
+      Sunfletcher(userId: userId, username: username)
+        ..position = Vector2(
+          60 + rng.nextDouble() * 600,
+          900 + rng.nextDouble() * 200,
+        ),
+    );
+    print('[game] $username joined → Sunfletcher spawned');
+  }
+
+  /// Spawn a melee-class angel soldier.
+  void _spawnMelee(String userId, String username) {
+    final rng = Random();
+    world.add(
+      AngelMelee(userId: userId, username: username)
+        ..position = Vector2(
+          60 + rng.nextDouble() * 600,
+          900 + rng.nextDouble() * 200,
+        ),
+    );
+    print('[game] Melee soldier $username deployed');
   }
 
   /// Spawn an elite soldier from the lobby selection.
   /// Spreads them across the angel spawn zone in 2 rows (frontline + back).
+  /// Respects class assignment: melee gets front row, archer back row.
   void _spawnAngelFromLobby(String username) {
     final rng = Random();
-    // Generate a deterministic-ish position from username hash for consistency
     final hash = username.codeUnits.fold(0, (int a, int b) => a + b);
-    final row = (hash % 2) * 60; // 0 or 60 y-offset (front/back line near Queen)
-    world.add(AngelSoldier(userId: 'lobby_$username', username: username)
-      ..position = Vector2(
-        40 + (hash * 7.3 % 640), // spread x based on name hash
-        1080 + row + rng.nextDouble() * 40, // right in front of Queen (y:1220)
-      ));
-    print('[game] Elite soldier $username deployed from lobby');
+    final isMelee = _classAssignments[username] == 'melee';
+    // Melee in front (y:1080-1120), archer in back (y:1140-1180)
+    final baseY = isMelee ? 1080.0 : 1140.0;
+    final yOffset = (hash % 2) * 30.0 + rng.nextDouble() * 20;
+    final soldier = isMelee
+        ? AngelMelee(userId: 'lobby_$username', username: username)
+        : Sunfletcher(userId: 'lobby_$username', username: username);
+    soldier.position = Vector2(40 + (hash * 7.3 % 640), baseY + yOffset);
+    world.add(soldier);
+    print(
+      '[game] ${isMelee ? "Melee" : "Archer"} $username deployed from lobby',
+    );
   }
 
   void _spawnDevilWave(String difficulty) {
     final rng = Random();
-    final count = switch (difficulty) { 'hard' => 6, 'boss' => 5, _ => 3 };
+    final count = switch (difficulty) {
+      'hard' => 6,
+      'boss' => 5,
+      _ => 3,
+    };
     print('[game] spawning $difficulty wave ($count devils)');
 
     for (int i = 0; i < count; i++) {
       final isBoss = difficulty == 'boss' && i == 0;
       final devilHp = isBoss ? 15 : (difficulty == 'hard' ? 5 : 3);
       final devil = DevilSoldier(phase: rng.nextDouble() * 6, hp: devilHp)
-        ..position = Vector2(40 + rng.nextDouble() * 640, 40 + rng.nextDouble() * 300);
+        ..position = Vector2(
+          40 + rng.nextDouble() * 640,
+          40 + rng.nextDouble() * 300,
+        );
       if (isBoss) devil.scale = Vector2.all(1.8);
       world.add(devil);
     }

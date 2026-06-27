@@ -56,7 +56,8 @@ class SpawnWaveEvent extends RelayEvent {
 class SpawnAngelEvent extends RelayEvent {
   final int count;
   final String? name;
-  const SpawnAngelEvent(this.count, [this.name]);
+  final bool isMelee;
+  const SpawnAngelEvent(this.count, [this.name, this.isMelee = false]);
 }
 
 class StartGameEvent extends RelayEvent {
@@ -189,6 +190,7 @@ class RelayClient {
         'spawn_angel' => SpawnAngelEvent(
             (data['count'] as num?)?.toInt() ?? 1,
             data['name'] as String?,
+            data['class'] == 'melee',
           ),
         'game_start' => const StartGameEvent(),
         'dev_config' => DevConfigEvent(
