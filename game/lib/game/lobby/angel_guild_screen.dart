@@ -636,6 +636,36 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
               _footerChip(Icons.favorite, '$totalPoints pts'),
             ],
           ),
+          const SizedBox(height: 6),
+          // Instructional hints
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.thumb_up, size: 10, color: _gold.withValues(alpha: 0.6)),
+              const SizedBox(width: 4),
+              Text(
+                'Like to climb',
+                style: TextStyle(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w500,
+                  color: _darkBrown.withValues(alpha: 0.5),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Icon(Icons.star, size: 10, color: _gold.withValues(alpha: 0.6)),
+              const SizedBox(width: 4),
+              Text(
+                'Follow = 2x points',
+                style: TextStyle(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                  color: _gold.withValues(alpha: 0.7),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 4),
           Container(height: 3, color: _mediumBrown),
         ],
