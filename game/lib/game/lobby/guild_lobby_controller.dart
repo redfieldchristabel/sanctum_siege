@@ -16,8 +16,8 @@ class LobbyPlayer {
   final String username;
   final String profilePicUrl;
   int points;
-  bool isGifter; // true = ranks 1-13 (points slot), false = ranks 14-18 (wildcard)
-  bool isFollower; // true = this user follows the channel (2x multiplier)
+  bool isGifter; // true = sent a gift this session
+  bool isFollower; // true = follows the channel (2x multiplier)
 
   /// Assigned class: 'sunfletcher' or 'melee'. Null until class phase resolves.
   String? soldierClass;
@@ -55,8 +55,19 @@ class GuildLobbyController extends ChangeNotifier {
   /// Current lobby phase.
   LobbyPhase phase = LobbyPhase.ranking;
 
-  /// 20 party slots. null = empty (awaiting hero).
+  /// 18 party slots for display only (driven by master registry).
   final List<LobbyPlayer?> partySlots = List.filled(18, null);
+
+  /// Unbounded master registry — every participant with ≥1 point.
+  /// This is the data layer; [partySlots] is the display layer.
+  final Map<String, LobbyPlayer> _masterRegistry = {};
+
+  /// Public read-only view for persistence / external access.
+  Map<String, LobbyPlayer> get masterRegistry => _masterRegistry;
+
+  /// Usernames of the currently selected 18 (for persistence filtering).
+  Set<String> get selectedUsernames =>
+      partySlots.where((p) => p != null).map((p) => p!.username).toSet();
 
   /// Current countdown seconds (displayed on screen).
   int countdownSeconds = 180;
@@ -86,10 +97,8 @@ class GuildLobbyController extends ChangeNotifier {
         notifyListeners();
       }
       if (countdownSeconds <= 0) {
-        phase = LobbyPhase.classAssignment;
-        countdownSeconds = 180;
-        classTimerSeconds = 30;
-        notifyListeners();
+        startClassAssignment();
+        // countdownSeconds / classTimerSeconds are reset inside the method
       }
     } else if (phase == LobbyPhase.classAssignment) {
       if (classTimerSeconds > 0) {
@@ -115,6 +124,12 @@ class GuildLobbyController extends ChangeNotifier {
 
   /// Mark a player as a gifter (after they send a gift).
   void markAsGifter(String username) {
+    // Update master registry
+    final regPlayer = _masterRegistry[username];
+    if (regPlayer != null) {
+      regPlayer.isGifter = true;
+    }
+    // Update slot for immediate visual
     final slot = partySlots.indexWhere((p) => p?.username == username);
     if (slot != -1 && partySlots[slot] != null) {
       partySlots[slot]!.isGifter = true;
@@ -123,84 +138,36 @@ class GuildLobbyController extends ChangeNotifier {
   }
 
   /// Add a single player to the party roster.
-  /// Finds the first empty slot, or replaces the lowest-points wildcard if full.
+  /// Player is recorded in the master registry; the 3-phase allocation
+  /// algorithm determines their slot position.
   void addPlayer(LobbyPlayer player) {
-    // 1) Find first empty slot
+    _masterRegistry[player.username] = player;
+
+    // Quick immediate fill for responsiveness (empty slots only)
     final emptyIdx = partySlots.indexWhere((p) => p == null);
     if (emptyIdx != -1) {
       partySlots[emptyIdx] = player;
-      print('[lobby] addPlayer: ${player.username} → slot ${emptyIdx + 1}');
       notifyListeners();
-      return;
-    }
-
-    // 2) All slots full — replace the lowest-points wildcard
-    int worstIdx = -1;
-    int worstPts = 999999;
-    for (int i = 13; i < 18; i++) {
-      final p = partySlots[i];
-      if (p != null && p.points < worstPts) {
-        worstPts = p.points;
-        worstIdx = i;
-      }
-    }
-    if (worstIdx != -1) {
-      print('[lobby] addPlayer: ${player.username} replaces slot ${worstIdx + 1}');
-      partySlots[worstIdx] = player;
-      notifyListeners();
+    } else {
+      _resortByPoints();
     }
   }
 
   /// Replace the entire party with incoming top players.
-  /// Bus-seat algorithm:
-  ///   1. Sort all players by points descending
-  ///   2. Take top 18
-  ///   3. Ensure up to 5 non-gifters are in the party:
-  ///      - If <5 non-gifters in the 18, bump lowest-point gifters
-  ///        and replace with next highest-point non-gifters from outside
+  /// Populates master registry, then runs the 3-phase allocation.
   void updateLobby(List<LobbyPlayer> incomingTopPlayers) {
     print('[lobby] updateLobby: ${incomingTopPlayers.length} players');
 
-    // 1) Sort all by points descending (gifter/normal ignored)
-    final sorted = List<LobbyPlayer>.from(incomingTopPlayers)
-      ..sort((a, b) => b.points.compareTo(a.points));
-
-    // 2) Take top 18
-    final selected = sorted.take(18).toList();
-
-    // 3) Ensure up to 5 non-gifters
-    final remaining = sorted.skip(18).toList();
-    int nonGifters = selected.where((p) => !p.isGifter).length;
-    int gifterBumpIdx = 17; // start from lowest-point gifter
-
-    while (nonGifters < 5 && remaining.isNotEmpty) {
-      // Find the next non-gifter waiting outside
-      final nextNonGifter = remaining.indexWhere((p) => !p.isGifter);
-      if (nextNonGifter == -1) break; // no more non-gifters in pool
-
-      // Find the lowest-point gifter in selected to bump
-      while (gifterBumpIdx >= 0 && !selected[gifterBumpIdx].isGifter) {
-        gifterBumpIdx--;
-      }
-      if (gifterBumpIdx < 0) break; // no bumpable gifter found
-
-      // Replace: bump gifter, insert non-gifter
-      selected[gifterBumpIdx] = remaining.removeAt(nextNonGifter);
-      nonGifters++;
-      gifterBumpIdx--;
+    // Populate master registry
+    for (final p in incomingTopPlayers) {
+      _masterRegistry[p.username] = p;
     }
 
-    // Re-sort final selected by points for display
-    selected.sort((a, b) => b.points.compareTo(a.points));
+    // Run 3-phase allocation
+    _resortByPoints();
 
-    // Fill slots
-    for (int i = 0; i < 18; i++) {
-      partySlots[i] = i < selected.length ? selected[i] : null;
-    }
-
-    print('[lobby] slots filled: ${selected.where((p) => p.isGifter).length} gifters + '
-        '${selected.where((p) => !p.isGifter).length} non-gifters');
-    notifyListeners();
+    final filledCount = partySlots.where((p) => p != null).length;
+    print('[lobby] slots filled: $filledCount / 18');
   }
 
   /// Add points to a specific player and trigger visual feedback.
@@ -228,41 +195,55 @@ class GuildLobbyController extends ChangeNotifier {
 
   /// Shared internal: apply points, trigger glow/popup, persist.
   void _addPoints(String username, int finalPoints, bool isFollower) {
-    final idx = partySlots.indexWhere((p) => p?.username == username);
-    if (idx == -1 || partySlots[idx] == null) {
-      print('[lobby] point_add: $username not found in slots');
-      return;
+    // 1) Update master registry (source of truth)
+    final regPlayer = _masterRegistry[username];
+    if (regPlayer != null) {
+      if (isFollower) regPlayer.isFollower = true;
+      regPlayer.points += finalPoints;
+    } else {
+      // First time this player gets points — create registry entry
+      _masterRegistry[username] = LobbyPlayer(
+        username: username,
+        profilePicUrl: '',
+        points: finalPoints,
+        isGifter: false,
+        isFollower: isFollower,
+      );
     }
 
-    // Track follower status on the player record
-    if (isFollower) partySlots[idx]!.isFollower = true;
+    // 2) If player is visible in a slot, update that slot and show glow
+    final idx = partySlots.indexWhere((p) => p?.username == username);
+    if (idx != -1 && partySlots[idx] != null) {
+      if (isFollower) partySlots[idx]!.isFollower = true;
+      partySlots[idx]!.points = _masterRegistry[username]!.points;
 
-    partySlots[idx]!.points += finalPoints;
-    print('[lobby] +$finalPoints (follower: $isFollower) → $username (slot ${idx + 1}, now ${partySlots[idx]!.points} pts)');
+      glowingCardIndices.add(idx);
+      activePopups.add(PointPopup(
+        username: username,
+        pointsAdded: finalPoints,
+      ));
 
-    // Trigger glow
-    glowingCardIndices.add(idx);
-    activePopups.add(PointPopup(
-      username: username,
-      pointsAdded: finalPoints,
-    ));
+      print('[lobby] +$finalPoints (follower: $isFollower) → $username (slot ${idx + 1}, now ${partySlots[idx]!.points} pts)');
+    } else {
+      print('[lobby] point_add: +$finalPoints → $username (registry, not in visible slots — now ${_masterRegistry[username]!.points} pts)');
+    }
 
     notifyListeners();
 
     // Auto-clear glow after animation duration
-    Future.delayed(const Duration(milliseconds: 800), () {
-      glowingCardIndices.remove(idx);
-      notifyListeners();
-    });
-
-    // Fade out popup
-    Future.delayed(const Duration(milliseconds: 1400), () {
-      activePopups.removeWhere((p) => p.username == username);
-      notifyListeners();
-    });
+    if (idx != -1) {
+      Future.delayed(const Duration(milliseconds: 800), () {
+        glowingCardIndices.remove(idx);
+        notifyListeners();
+      });
+      Future.delayed(const Duration(milliseconds: 1400), () {
+        activePopups.removeWhere((p) => p.username == username);
+        notifyListeners();
+      });
+    }
 
     // Persist to disk after point change (crash-safe)
-    PersistentStorage.saveLobbyState(partySlots);
+    PersistentStorage.saveLobbyState(_masterRegistry, selectedUsernames);
 
     // Re-sort after points change (give visual time to settle)
     Future.delayed(const Duration(milliseconds: 2000), () {
@@ -272,6 +253,7 @@ class GuildLobbyController extends ChangeNotifier {
 
   /// Reset all 18 slots to empty with a soft fade.
   void clearLobby() {
+    _masterRegistry.clear();
     for (int i = 0; i < 18; i++) partySlots[i] = null;
     activePopups.clear();
     glowingCardIndices.clear();
@@ -296,8 +278,15 @@ class GuildLobbyController extends ChangeNotifier {
   // ── Class Assignment Phase ────────────────────────
 
   /// Transition from ranking to class assignment phase.
+  /// Persists filtered registry (crash-safe seed) before assigning classes.
   void startClassAssignment() {
+    // ── Crash-Resilient Persistence (Section 3) ──
+    // Save filtered data: strip non-gifters + selected 18,
+    // keep unselected gifters for the next match seed.
+    PersistentStorage.saveLobbyState(_masterRegistry, selectedUsernames);
+
     phase = LobbyPhase.classAssignment;
+    countdownSeconds = 180; // reset for next ranking phase
     classTimerSeconds = 30;
     _assignRandomClasses();
     notifyListeners();
@@ -360,40 +349,80 @@ class GuildLobbyController extends ChangeNotifier {
     return map;
   }
 
-  // ── Internal ──────────────────────────────────────
+  /// Used by PersistentStorage.restoreLobbyState to seed the master registry
+  /// from disk-saved unselected gifters.
+  void restoreRegistry(List<LobbyPlayer> players) {
+    for (final p in players) {
+      _masterRegistry[p.username] = p;
+    }
+    _resortByPoints();
+  }
 
+  // ── Internal: 3-Phase Seat Allocation ────────────
+
+  /// Replace old bus-seat with the 3-phase Hybrid Merit-Wildcard algorithm.
+  ///
+  /// Phase 1 (Seats 1-14): Pure meritocracy — top 14 by points.
+  /// Phase 2 (Seats 15-18): Non-gifter wildcard zone.
+  /// Phase 3 (Fallback):   Fill with unselected gifters if <4 non-gifters.
   void _resortByPoints() {
-    final filled = <LobbyPlayer>[];
-    for (final slot in partySlots) {
-      if (slot != null) filled.add(slot);
+    // ── Phase 1: Pure Meritocracy (Seats 1-14) ──
+    // All participants with ≥1 point, sorted descending
+    final allPlayers = _masterRegistry.values
+        .where((p) => p.points >= 1)
+        .toList()
+      ..sort((a, b) => b.points.compareTo(a.points));
+
+    final selected = <LobbyPlayer>[];
+    final selectedUsernames = <String>{};
+
+    // Take top 14 — pure score, gifter status irrelevant
+    for (int i = 0; i < 14 && i < allPlayers.length; i++) {
+      selected.add(allPlayers[i]);
+      selectedUsernames.add(allPlayers[i].username);
     }
+    print('[lobby] Phase 1: ${selected.length} merit seats filled');
 
-    // Same bus-seat algorithm as updateLobby
-    filled.sort((a, b) => b.points.compareTo(a.points));
+    // ── Phase 2: Non-Gifter Wildcard Zone (Seats 15-18) ──
+    final remaining = allPlayers
+        .where((p) => !selectedUsernames.contains(p.username))
+        .toList();
+    final nonGifters = remaining
+        .where((p) => !p.isGifter)
+        .toList()
+      ..sort((a, b) => b.points.compareTo(a.points));
 
-    final selected = filled.take(18).toList();
-    final remaining = filled.skip(18).toList();
-    int nonGifters = selected.where((p) => !p.isGifter).length;
-    int gifterBumpIdx = 17;
+    int wildcardFilled = 0;
+    for (int i = 0; i < 4 && i < nonGifters.length; i++) {
+      selected.add(nonGifters[i]);
+      selectedUsernames.add(nonGifters[i].username);
+      wildcardFilled++;
+    }
+    print('[lobby] Phase 2: $wildcardFilled wildcard seats filled');
 
-    while (nonGifters < 5 && remaining.isNotEmpty) {
-      final nextNonGifter = remaining.indexWhere((p) => !p.isGifter);
-      if (nextNonGifter == -1) break;
-      while (gifterBumpIdx >= 0 && !selected[gifterBumpIdx].isGifter) {
-        gifterBumpIdx--;
+    // ── Phase 3: Monetization Guard (Fallback) ──
+    if (wildcardFilled < 4) {
+      final remainingGifters = remaining
+          .where((p) => p.isGifter && !selectedUsernames.contains(p.username))
+          .toList()
+        ..sort((a, b) => b.points.compareTo(a.points));
+
+      int fallbackFilled = 0;
+      final slots = 4 - wildcardFilled;
+      for (int i = 0; i < slots && i < remainingGifters.length; i++) {
+        selected.add(remainingGifters[i]);
+        selectedUsernames.add(remainingGifters[i].username);
+        fallbackFilled++;
       }
-      if (gifterBumpIdx < 0) break;
-      selected[gifterBumpIdx] = remaining.removeAt(nextNonGifter);
-      nonGifters++;
-      gifterBumpIdx--;
+      print('[lobby] Phase 3: $fallbackFilled fallback seats filled');
     }
 
-    selected.sort((a, b) => b.points.compareTo(a.points));
-
+    // Fill display slots
     for (int i = 0; i < 18; i++) {
       partySlots[i] = i < selected.length ? selected[i] : null;
     }
 
+    print('[lobby] total: ${selected.length} players allocated');
     notifyListeners();
   }
 }

@@ -176,8 +176,8 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
     final classMap = ctrl.classAssignments;
     print('[lobby] Entering battle with ${usernames.length} elite soldiers');
 
-    // Save points to disk (crash-safe) before entering battle
-    PersistentStorage.saveLobbyState(ctrl.partySlots);
+    // Save filtered registry to disk (crash-safe seed) before entering battle
+    PersistentStorage.saveLobbyState(ctrl.masterRegistry, ctrl.selectedUsernames);
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
