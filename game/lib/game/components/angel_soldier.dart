@@ -194,7 +194,10 @@ abstract class AngelSoldier extends SpriteComponent {
         ) ?? [];
 
         Component? closestThreat;
-        double closestDist = double.infinity;
+
+        // Enemies farther than this from the cover target are not a threat
+        const maxThreatRadius = 250.0;
+        double closestDist = maxThreatRadius;
 
         // Find the closest threat to the person I am covering
         for (final enemy in enemies) {
