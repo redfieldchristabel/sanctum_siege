@@ -115,7 +115,7 @@ abstract class AngelSoldier extends SpriteComponent {
     if (hp <= 0) {
       state = SoldierState.ghost;
       sprite = _ghostSprite;
-      cancelRevive();
+      coverTarget = null; // Clear guard assignment, don't call cancelRevive (knight override resets sprite)
       return true;
     }
     return false;
