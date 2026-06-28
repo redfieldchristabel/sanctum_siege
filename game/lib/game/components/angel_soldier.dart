@@ -195,9 +195,9 @@ abstract class AngelSoldier extends SpriteComponent {
 
         Component? closestThreat;
 
-        // Enemies farther than this from the cover target are not a threat
-        const maxThreatRadius = 250.0;
-        double closestDist = maxThreatRadius;
+        // Danger zone around the cover target — ignore enemies outside this
+        const dangerZone = 175.0;
+        double closestDist = dangerZone;
 
         // Find the closest threat to the person I am covering
         for (final enemy in enemies) {
@@ -210,11 +210,18 @@ abstract class AngelSoldier extends SpriteComponent {
         }
 
         if (closestThreat != null) {
-          // STATE B: Threat Detected! Intercept and lock coordinates directly onto them
+          // STATE B: Threat entered Bob's danger zone — intercept!
           moveTarget = (closestThreat as PositionComponent).position.clone();
         } else {
-          // STATE A: Quiet Moments -> Arrive directly at the target's front (slightly above them)
-          moveTarget = coverTarget!.position + Vector2(0, -35);
+          // STATE A: Quiet — hold guard post in front of Bob
+          final guardOffset = Vector2(0, -35);
+          final guardPosition = coverTarget!.position + guardOffset;
+          // Only move if drifted too far from post (avoids jitter)
+          if (position.distanceTo(guardPosition) > 10) {
+            moveTarget = guardPosition;
+          } else {
+            moveTarget = position.clone(); // idle in place
+          }
         }
 
         // Apply active translation drift movement

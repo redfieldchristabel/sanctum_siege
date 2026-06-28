@@ -4,11 +4,6 @@
 // Usage:
 //   npx tsx cli.ts                    — interactive mode
 //   echo "wave hard" | npx tsx cli.ts --pipe   — pipe mode
-//
-// TikTok simulation:
-//   join <name>   → viewer enters stream (appears in party, sets active user)
-//   like <count>  → active user sends likes (adds points to their lobby score)
-//   gift <n> [c]  → active user sends a gift
 
 import * as readline from "node:readline";
 import { stdin as input, stdout as output, exit } from "node:process";
@@ -18,20 +13,30 @@ import * as path from "node:path";
 const RELAY_URL = process.env.RELAY_URL ?? "ws://localhost:8080/dev";
 const PRESETS_DIR = path.resolve(import.meta.dirname!, "presets");
 
-// ─── Active user tracking ─────────────────────────
+// ─── Active user tracking & context ─────────────────────────
 let _activeUser: { userId: string; username: string } | null = null;
+
+// Registry map of username -> userId to retain consistency across sessions
+const _userMap = new Map<string, string>([
+  ["sarah", "dev_sarah"],
+  ["alex", "dev_alex"],
+  ["bob", "dev_bob"],
+  ["alice", "dev_alice"],
+]);
 
 // ─── Help text ───────────────────────────────────────────────
 
 const HELP = `
   ⚔️  Sanctum Siege — Dev CLI (TikTok Simulator)
 
-  TikTok Events:
+  TikTok Context & Events:
+    be <name>        Become/switch to this user context locally (no join event)
     join <name>      Viewer enters stream (sets active user, appears in party)
     like [count]     Active user sends likes (adds lobby points)
     gift <name> [c]  Active user sends a gift (adds lobby points)
     comment <text>   Chat comment from active user
     revive <user>    Send revive request (active user's soldier walks to ghost)
+    cover <user>     Send cover request (active user's soldier guards target)
     leave            Active user leaves
 
   Game Admin:
@@ -53,19 +58,26 @@ const HELP = `
     exit / quit      Disconnect
 
   Shortcuts:
+    be <name>   = become
     j <name>    = join
-    l <id>      = leave
+    l           = leave
     g <n> [c]   = gift
     w [type]    = wave
-
+    c <text>    = comment
+    r <user>    = revive
+    cov <user>  = cover
 `.trim();
 
 // ─── Command builders ────────────────────────────────────────
 
-type CommandFn = (match: RegExpMatchArray) => { event: string; data: Record<string, unknown> };
+type CommandFn = (
+  match: RegExpMatchArray,
+  activeUser: { userId: string; username: string }
+) => { event: string; data: Record<string, unknown> } | null;
 
 interface CommandEntry {
   pattern: RegExp;
+  requiresUser?: boolean; // Contextual Guard Check Flag
   build: CommandFn;
 }
 
@@ -74,12 +86,25 @@ function send(a: { event: string; data: Record<string, unknown> }): void {
 }
 
 const commands: CommandEntry[] = [
+  // ── Local command: become/be ───────────────────
+  {
+    pattern: /^be(?:come)?\s+(.+)$/i,
+    build: ([, name]) => {
+      const username = name.trim();
+      const userId = _userMap.get(username.toLowerCase()) ?? `dev_${username.toLowerCase()}`;
+      _userMap.set(username.toLowerCase(), userId);
+      _activeUser = { userId, username };
+      console.log(`  👤 Switched context! You are now acting as: ${username}`);
+      return null; // Handled internally, nothing sent to relay server
+    },
+  },
   // ── TikTok event: join ──────────────────────────
   {
     pattern: /^(?:join|j)\s+(.+)$/i,
     build: ([, name]) => {
-      const userId = `dev_${Date.now()}`;
       const username = name.trim();
+      const userId = _userMap.get(username.toLowerCase()) ?? `dev_${Date.now()}`;
+      _userMap.set(username.toLowerCase(), userId);
       _activeUser = { userId, username };
       return { event: "join", data: { userId, username, isGifter: false } };
     },
@@ -87,18 +112,20 @@ const commands: CommandEntry[] = [
   // ── TikTok event: like ──────────────────────────
   {
     pattern: /^(?:like|likes?)\s*(\d+)?$/i,
-    build: ([, count]) => {
+    requiresUser: true,
+    build: ([, count], u) => {
       const c = count ? parseInt(count) : 1;
-      const u = _activeUser ?? { userId: "dev", username: "Dev" };
+      console.log(`  [${u.username}] sends ${c} likes`);
       return { event: "like", data: { userId: u.userId, username: u.username, count: c } };
     },
   },
   // ── TikTok event: gift ──────────────────────────
   {
     pattern: /^(?:gift|g)\s+(\S+)\s*(\d+)?$/i,
-    build: ([, giftName, count]) => {
+    requiresUser: true,
+    build: ([, giftName, count], u) => {
       const c = count ? parseInt(count) : 1;
-      const u = _activeUser ?? { userId: "dev", username: "Dev" };
+      console.log(`  [${u.username}] sends a gift: ${giftName} x${c}`);
       return {
         event: "gift",
         data: {
@@ -106,7 +133,6 @@ const commands: CommandEntry[] = [
           username: u.username,
           giftName: giftName.trim(),
           count: c,
-          // Include calculated points so the receiver doesn't need gift name→points logic
           lobbyPoints: calcGiftPoints(giftName, c),
         },
       };
@@ -115,36 +141,51 @@ const commands: CommandEntry[] = [
   // ── TikTok event: comment ───────────────────────
   {
     pattern: /^(?:comment|chat|c)\s+(.+)$/i,
-    build: ([, text]) => {
-      const u = _activeUser ?? { userId: "dev_chat", username: "Dev" };
+    requiresUser: true,
+    build: ([, text], u) => {
+      console.log(`  [${u.username}] comments: "${text.trim()}"`);
       return { event: "comment", data: { userId: u.userId, username: u.username, text: text.trim() } };
     },
   },
   // ── Revive command ──────────────────────────
   {
     pattern: /^(?:revive|r)\s+@?(\S+)$/i,
-    build: ([, name]) => {
-      const u = _activeUser ?? { userId: "dev_revive", username: "Dev" };
-      // Sends as a comment event so the game parses it the same way as TikTok chat
-      return { event: "comment", data: { userId: u.userId, username: u.username, text: `revive @${name.trim()}` } };
+    requiresUser: true,
+    build: ([, name], u) => {
+      const target = name.trim();
+      console.log(`  [${u.username}] issues revive command for @${target}`);
+      return { event: "comment", data: { userId: u.userId, username: u.username, text: `revive @${target}` } };
+    },
+  },
+  // ── Cover command ───────────────────────────
+  {
+    pattern: /^(?:cover|cov)\s+@?(\S+)$/i,
+    requiresUser: true,
+    build: ([, name], u) => {
+      const target = name.trim();
+      console.log(`  [${u.username}] issues cover command for @${target}`);
+      return { event: "comment", data: { userId: u.userId, username: u.username, text: `cover @${target}` } };
     },
   },
   // ── TikTok event: leave ─────────────────────────
   {
     pattern: /^(?:leave|l)\s*(\S*)$/i,
-    build: ([, id]) => {
-      const userId = id || _activeUser?.userId || "unknown";
-      _activeUser = null;
+    requiresUser: true,
+    build: ([, id], u) => {
+      const userId = id || u.userId;
+      console.log(`  [${u.username}] leaves the stream room`);
+      if (!id) _activeUser = null;
       return { event: "leave", data: { userId } };
     },
   },
   // ── Game admin ──────────────────────────────────
   {
     pattern: /^(?:kill|k)\s+(\S+)$/i,
-    build: ([, name]) => ({
-      event: "kill",
-      data: { username: name.trim() },
-    }),
+    build: ([, name]) => {
+      const username = name.trim();
+      _userMap.set(username.toLowerCase(), _userMap.get(username.toLowerCase()) ?? `dev_${username.toLowerCase()}`);
+      return { event: "kill", data: { username } };
+    },
   },
   {
     pattern: /^(?:game_start|start|begin|go)$/i,
@@ -164,21 +205,21 @@ const commands: CommandEntry[] = [
       data: { count: parseInt(count) },
     }),
   },
-  // ── Spawn a named angel (for revive testing) ──
   {
     pattern: /^(?:spawn|sp)\s+(\S+)$/i,
-    build: ([, name]) => ({
-      event: "spawn_angel",
-      data: { name: name.trim() },
-    }),
+    build: ([, name]) => {
+      const username = name.trim();
+      _userMap.set(username.toLowerCase(), _userMap.get(username.toLowerCase()) ?? `dev_${username.toLowerCase()}`);
+      return { event: "spawn_angel", data: { name: username } };
+    },
   },
-  // ── Spawn a named melee soldier ──
   {
     pattern: /^(?:melee|m)\s+(\S+)$/i,
-    build: ([, name]) => ({
-      event: "spawn_angel",
-      data: { name: name.trim(), class: "melee" },
-    }),
+    build: ([, name]) => {
+      const username = name.trim();
+      _userMap.set(username.toLowerCase(), _userMap.get(username.toLowerCase()) ?? `dev_${username.toLowerCase()}`);
+      return { event: "spawn_angel", data: { name: username, class: "melee" } };
+    },
   },
   {
     pattern: /^march$/i,
@@ -195,7 +236,6 @@ const commands: CommandEntry[] = [
       return { event: "dev_config", data: { key: key.trim(), value: parsed } };
     },
   },
-  // ── Lobby admin ─────────────────────────────────
   {
     pattern: /^lobby$/i,
     build: () => ({ event: "lobby_update", data: {} }),
@@ -212,7 +252,7 @@ function calcGiftPoints(name: string, count: number): number {
   if (lower.includes("capsule") || lower.includes("lion")) return 500 * count;
   if (lower.includes("donut") || lower.includes("diamond")) return 50 * count;
   if (lower.includes("rose") || lower.includes("flower")) return 10 * count;
-  return 0; // unrecognized gifts don't add lobby points
+  return 0;
 }
 
 // ─── WebSocket connection ────────────────────────────────────
@@ -273,11 +313,55 @@ function executeLine(line: string): boolean {
   for (const cmd of commands) {
     const m = trimmed.match(cmd.pattern);
     if (m) {
-      send(cmd.build(m));
+      // 🛡️ Context Guard Evaluation
+      if (cmd.requiresUser && !_activeUser) {
+        console.log("  ✗ Guard Error: You must specify a user first using 'be <name>' or 'join <name>' before using this command.");
+        return true;
+      }
+
+      const mockFallback = { userId: "dev", username: "Dev" };
+      const result = cmd.build(m, _activeUser ?? mockFallback);
+
+      if (result) {
+        send(result);
+      }
       return true;
     }
   }
   return false;
+}
+
+/** Tab auto-completion handler for readline */
+function completer(line: string): [string[], string] {
+  const words = line.split(/\s+/);
+
+  if (words.length <= 1) {
+    const commandCompletions = [
+      "be", "become", "join", "like", "gift", "comment", "revive", "cover", "leave",
+      "start", "go", "kill", "wave", "angel", "spawn", "melee",
+      "config", "march", "lobby", "lobby_clear", "presets", "run", "help", "exit"
+    ];
+    const hits = commandCompletions.filter((c) => c.startsWith(line.toLowerCase()));
+    return [hits.length ? hits : commandCompletions, line];
+  }
+
+  const command = words[0]?.toLowerCase() ?? "";
+  if (!command) return [[], line];
+  const argPrefix = words.slice(1).join(" ");
+
+  if (["kill", "k", "revive", "r", "spawn", "sp", "melee", "m", "be", "become", "cover", "cov"].includes(command)) {
+    const usernames = Array.from(_userMap.keys());
+    const hits = usernames.filter((name) => name.toLowerCase().startsWith(argPrefix.toLowerCase()));
+    return [hits.map((h) => `${words[0]} ${h}`), line];
+  }
+
+  if (["wave", "w"].includes(command)) {
+    const difficulties = ["normal", "hard", "boss"];
+    const hits = difficulties.filter((d) => d.startsWith(argPrefix.toLowerCase()));
+    return [hits.map((h) => `${words[0]} ${h}`), line];
+  }
+
+  return [[], line];
 }
 
 // ─── Presets ─────────────────────────────────────────────────
@@ -315,7 +399,6 @@ async function runPreset(name: string): Promise<void> {
   const lines = content.split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
 
   for (const line of lines) {
-    // Support sleep <seconds> — pauses execution for a given duration
     const sleepMatch = line.match(/^sleep\s+(\d+(?:\.\d+)?)\s*(?:s(?:ec(?:onds?)?)?)?$/i);
     if (sleepMatch) {
       const ms = Math.round(parseFloat(sleepMatch[1]!) * 1000);
@@ -336,14 +419,18 @@ async function runPreset(name: string): Promise<void> {
 async function interactive(): Promise<void> {
   console.log(HELP);
 
-  const rl = readline.createInterface({ input, output, prompt: "> " });
+  const rl = readline.createInterface({
+    input,
+    output,
+    prompt: "> ",
+    completer: completer
+  });
   rl.prompt();
 
   for await (const line of rl) {
     const trimmed = line.trim();
     if (!trimmed) { rl.prompt(); continue; }
 
-    // Built-in commands
     if (/^(exit|quit|q)$/i.test(trimmed)) {
       console.log("bye");
       ws?.close();
@@ -367,12 +454,17 @@ async function interactive(): Promise<void> {
       continue;
     }
 
-    // WebSocket commands
     let matched = false;
     for (const cmd of commands) {
       const m = trimmed.match(cmd.pattern);
       if (m) {
-        send(cmd.build(m));
+        if (cmd.requiresUser && !_activeUser) {
+          console.log("  ✗ Guard Error: You must specify a user first using 'be <name>' or 'join <name>' before using this command.");
+        } else {
+          const mockFallback = { userId: "dev", username: "Dev" };
+          const res = cmd.build(m, _activeUser ?? mockFallback);
+          if (res) send(res);
+        }
         matched = true;
         break;
       }
