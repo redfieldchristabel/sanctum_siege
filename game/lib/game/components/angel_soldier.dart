@@ -124,15 +124,46 @@ abstract class AngelSoldier extends SpriteComponent {
 
     if (state == SoldierState.dead) return;
 
+    // 1. VISUAL SORTING (Z-INDEX): ghosts in background, alive sorted by Y
     if (state == SoldierState.ghost) {
+      priority = 0; // Push ghosts to the absolute background layer
       moveTarget = null;
       if (reviveBeamTimer > 0) reviveBeamTimer += dt;
       return;
+    } else {
+      // Living soldiers get priority sorted by Y — lower on screen = in front
+      priority = 100 + position.y.toInt();
     }
 
     if (state == SoldierState.burning) return;
 
     time += dt;
+
+    // 2. ANTI-STACKING (SEPARATION PHYSICS): prevent soldiers overlapping
+    if (state == SoldierState.alive) {
+      Vector2 pushForce = Vector2.zero();
+      int overlapCount = 0;
+
+      // Check all other alive angel comrades
+      final comrades = parent?.children.whereType<AngelSoldier>() ?? [];
+      for (final other in comrades) {
+        if (other == this || other.state != SoldierState.alive) continue;
+
+        final dist = position.distanceTo(other.position);
+        const personalSpaceRadius = 32.0;
+
+        if (dist < personalSpaceRadius && dist > 0) {
+          final pushDirection = (position - other.position)..normalize();
+          pushDirection.scale(personalSpaceRadius - dist);
+          pushForce += pushDirection;
+          overlapCount++;
+        }
+      }
+
+      if (overlapCount > 0) {
+        position += pushForce * dt * 2.5;
+      }
+    }
 
     // Revive movement
     if (isReviving) {
