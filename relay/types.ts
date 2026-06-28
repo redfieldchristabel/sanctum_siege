@@ -15,7 +15,9 @@ export type GameEvent =
   | { event: "lobby_update"; data: Record<string, never>; source: "dev" }
   | { event: "lobby_clear";  data: Record<string, never>; source: "dev" }
   | { event: "lobby_points"; data: LobbyPointsData;      source: "dev" }
-  | { event: "start_match";  data: Record<string, never>; source: "dev" };
+  | { event: "start_match";  data: Record<string, never>; source: "dev" }
+  // Game lifecycle
+  | { event: "next_match";  data: Record<string, never>; source: "dev" };
 
 export type EventSource = "tiktok" | "dev";
 

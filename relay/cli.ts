@@ -48,6 +48,7 @@ const HELP = `
     melee <name>     Spawn a named melee-class soldier (tank, close-range)
     config <k> <v>   Change game config at runtime
     march            Trigger start-match transition
+    next / reset     Return to lobby for next match (after game over)
 
   Other:
     lobby            Fill lobby with mock party for testing
@@ -244,6 +245,11 @@ const commands: CommandEntry[] = [
     pattern: /^lobby_clear$/i,
     build: () => ({ event: "lobby_clear", data: {} }),
   },
+  // ── Game lifecycle ──
+  {
+    pattern: /^(?:next|next_match|reset)$/i,
+    build: () => ({ event: "next_match", data: {} }),
+  },
 ];
 
 /** Convert gift name to lobby points. */
@@ -340,7 +346,8 @@ function completer(line: string): [string[], string] {
       "become", "be", "join", "like", "gift", "comment", "chat",
       "revive", "cover", "leave", "start", "go", "kill", "wave",
       "angel", "spawn", "melee", "config", "set", "march",
-      "lobby", "lobby_clear", "presets", "run", "help", "exit", "quit"
+      "lobby", "lobby_clear", "presets", "run", "help", "exit", "quit",
+      "next", "reset"
     ];
 
     const hits = commandCompletions.filter((c) => c.startsWith(line.toLowerCase()));

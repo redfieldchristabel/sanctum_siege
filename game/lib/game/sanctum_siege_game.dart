@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/painting.dart';
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
 import 'relay_client.dart';
@@ -87,6 +88,71 @@ class ReviverSlot {
   ReviverSlot({required this.userId, required this.username});
 }
 
+/// An overlay component that renders VICTORY / DEFEAT text on the canvas.
+/// Added to the world when the game ends; removed on next_match.
+class _EndGameOverlay extends PositionComponent {
+  final String title;
+  final bool isVictory;
+  double _time = 0;
+
+  _EndGameOverlay({required this.title, required this.isVictory})
+      : super(size: Vector2(720, 1280));
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    _time += dt;
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final pulse = sin(_time * 2.0) * 0.06 + 0.94;
+    final cx = size.x / 2;
+    final cy = size.y / 2 - 40;
+
+    // Large title text
+    final titleStyle = TextStyle(
+      color: isVictory
+          ? const Color(0xFFFFD700).withValues(alpha: pulse)
+          : const Color(0xFFCC2222).withValues(alpha: pulse),
+      fontSize: 64,
+      fontWeight: FontWeight.w900,
+      letterSpacing: 6,
+    );
+    final titleTp = TextPainter(
+      text: TextSpan(text: title, style: titleStyle),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    titleTp.paint(canvas, Offset(cx - titleTp.width / 2, cy - titleTp.height / 2));
+
+    // Subtitle
+    final subStyle = TextStyle(
+      color: const Color(0xCCCCDDAA).withValues(alpha: pulse * 0.8),
+      fontSize: 16,
+      fontWeight: FontWeight.w400,
+      letterSpacing: 2,
+    );
+    final subTp = TextPainter(
+      text: TextSpan(text: "Type 'next' to continue", style: subStyle),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    subTp.paint(canvas, Offset(cx - subTp.width / 2, cy + 50));
+
+    // Decorative border glow
+    final glowPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          (isVictory ? const Color(0xFFFFD700) : const Color(0xFFCC2222))
+              .withValues(alpha: 0.15 * pulse),
+          const Color(0x00000000),
+        ],
+      ).createShader(Rect.fromLTWH(0, cy - 80, size.x, 160));
+    canvas.drawRect(Rect.fromLTWH(0, cy - 80, size.x, 160), glowPaint);
+  }
+}
+
 /// Sanctum Siege — TikTok interactive live game.
 ///
 /// Flow:
@@ -95,7 +161,11 @@ class ReviverSlot {
 ///   3. fighting — queued waves deploy, combat active, King attacks
 ///   4. gameOver — Queen died
 ///   5. victory — King died
+///
+/// [onGameOver] is called when the admin sends `next_match` after the game ends,
+/// allowing the host screen to return to the lobby with preserved gifter points.
 class SanctumSiegeGame extends FlameGame {
+  final VoidCallback? onGameOver;
   late final RelayClient _relay;
 
   /// Usernames of the 18 elite soldiers from the lobby.
@@ -107,6 +177,7 @@ class SanctumSiegeGame extends FlameGame {
   SanctumSiegeGame({
     this._lobbyUsernames = const [],
     this._classAssignments = const {},
+    this.onGameOver,
   });
   GamePhase _phase = GamePhase.idle;
   double _countdownTimer = 0;
@@ -176,8 +247,10 @@ class SanctumSiegeGame extends FlameGame {
 
   @override
   void update(double dt) {
-    if (_phase == GamePhase.gameOver || _phase == GamePhase.victory) return;
+    // Always run super so components keep rendering (esp. the end-game overlay)
     super.update(dt);
+
+    if (_phase == GamePhase.gameOver || _phase == GamePhase.victory) return;
 
     if (_phase == GamePhase.countdown) {
       _countdownTimer -= dt;
@@ -920,17 +993,29 @@ class SanctumSiegeGame extends FlameGame {
     if (queen == null && _phase == GamePhase.fighting) {
       _phase = GamePhase.gameOver;
       print('[game] ★ GAME OVER — Queen slain!');
+      _showEndGameOverlay('DEFEAT', false);
     }
     if (king == null && queen != null && _phase == GamePhase.fighting) {
       _phase = GamePhase.victory;
       print('[game] ★ VICTORY — Devil King defeated!');
+      _showEndGameOverlay('VICTORY', true);
     }
+  }
+
+  /// Add the end-game overlay on top of everything.
+  void _showEndGameOverlay(String title, bool isVictory) {
+    world.add(
+      _EndGameOverlay(title: title, isVictory: isVictory)
+        ..priority = 9999,
+    );
   }
 
   // ─── RELAY EVENTS ─────────────────────────────────────────
 
   void _handleEvent(RelayEvent event) {
-    if (_phase == GamePhase.gameOver || _phase == GamePhase.victory) return;
+    // Allow next_match even during game-over/victory
+    if ((_phase == GamePhase.gameOver || _phase == GamePhase.victory) &&
+        event is! NextMatchEvent) return;
 
     switch (event) {
       case StartGameEvent _:
@@ -994,6 +1079,12 @@ class SanctumSiegeGame extends FlameGame {
 
       case LeaveEvent e:
         _handleLeave(e.userId);
+        break;
+
+      case NextMatchEvent _:
+        print('[game] ★ NEXT MATCH — returning to lobby');
+        _relay.dispose();
+        onGameOver?.call();
         break;
 
       default:

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'persistent_storage.dart';
 
 // ══════════════════════════════════════════════════
 //  Phases
@@ -232,6 +233,9 @@ class GuildLobbyController extends ChangeNotifier {
       notifyListeners();
     });
 
+    // Persist to disk after point change (crash-safe)
+    PersistentStorage.saveLobbyState(partySlots);
+
     // Re-sort after points change (give visual time to settle)
     Future.delayed(const Duration(milliseconds: 2000), () {
       _resortByPoints();
@@ -244,6 +248,7 @@ class GuildLobbyController extends ChangeNotifier {
     activePopups.clear();
     glowingCardIndices.clear();
     countdownSeconds = 180;
+    PersistentStorage.clearSavedLobby(); // wipe disk too
     notifyListeners();
   }
 

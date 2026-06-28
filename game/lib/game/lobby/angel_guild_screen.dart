@@ -4,6 +4,8 @@ import 'package:flame/game.dart';
 import 'guild_lobby_controller.dart';
 import '../relay_client.dart';
 import '../sanctum_siege_game.dart';
+import 'persistent_storage.dart';
+import '../../main.dart';
 
 /// ──────────────────────────────────────────────────
 /// ANGEL GUILD — Party Selection Screen
@@ -53,6 +55,9 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
       onEvent: _handleEvent,
     );
     _relay.connect();
+
+    // Restore gifter points from previous match (crash-safe)
+    PersistentStorage.restoreLobbyState(ctrl);
 
     ctrl.onMatchReady = _enterBattle;
   }
@@ -171,12 +176,27 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
     final classMap = ctrl.classAssignments;
     print('[lobby] Entering battle with ${usernames.length} elite soldiers');
 
+    // Save points to disk (crash-safe) before entering battle
+    PersistentStorage.saveLobbyState(ctrl.partySlots);
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => GameWidget(
           game: SanctumSiegeGame(
             lobbyUsernames: usernames,
             classAssignments: classMap,
+            onGameOver: () {
+              // Use the app-level navigator key — the original screen
+              // may already be disposed after pushReplacement.
+              SanctumSiegeApp.navigatorKey.currentState?.pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (_) => AngelGuildScreen(
+                    controller: GuildLobbyController(),
+                  ),
+                ),
+                (route) => false,
+              );
+            },
           ),
         ),
       ),

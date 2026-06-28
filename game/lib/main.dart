@@ -32,11 +32,17 @@ void main() async {
 class SanctumSiegeApp extends StatelessWidget {
   final GuildLobbyController controller;
 
+  /// Global navigator key so the game can return to the lobby
+  /// even after the original route was replaced/disposed.
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+
   const SanctumSiegeApp({super.key, required this.controller});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: SanctumSiegeApp.navigatorKey,
       title: 'Sanctum Siege',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(useMaterial3: true).copyWith(

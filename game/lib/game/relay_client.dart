@@ -102,6 +102,11 @@ class KillEvent extends RelayEvent {
   const KillEvent(this.username);
 }
 
+/// Admin command to advance to the next match.
+class NextMatchEvent extends RelayEvent {
+  const NextMatchEvent();
+}
+
 // ── Gift → lobby point conversion ───────────────
 int giftPoints(String giftName, int count) {
   final lower = giftName.toLowerCase();
@@ -210,6 +215,7 @@ class RelayClient {
           ),
         'start_match' => const StartMatchEvent(),
         'kill' => KillEvent(data['username'] as String? ?? ''),
+        'next_match' => const NextMatchEvent(),
         _ => null,
       };
     } catch (e) {
