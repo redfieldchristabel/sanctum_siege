@@ -1,0 +1,77 @@
+# =====================================================================
+# Sanctum Siege — Revive & Active Interceptor Cover Mechanic Integration Test
+# =====================================================================
+# Flow:
+#  1. 3 elite viewers join the match (Alice, Bob, Charlie).
+#  2. Match transitions from lobby configuration to battle countdown.
+#  3. Alice is killed via dev command to test the ghost soul asset swap.
+#  4. Bob runs to perform a revival ritual on Alice's ghost soul.
+#  5. Charlie steps up as a bodyguard and executes a 'cover @Bob' order.
+#  6. A devil wave is deployed to verify if Charlie intercepts enemies threatening Bob.
+#  7. Likes are simulated to verify the burst fire/speed boost pipelines.
+# =====================================================================
+
+# ── Phase 1: Lobby Assembly & Deployment ──
+join Alice
+like 50
+join Bob
+like 40
+join Charlie
+like 30
+sleep 1
+
+# Move past the lobby assignment window
+go
+sleep 5
+
+# Move past the class selection buffer into the battle map loading gate
+go
+
+# Wait 5 seconds to clear out the transition delay (1.5s) + battle countdown clock (3.0s)
+sleep 5
+
+# ── Phase 2: Death & Ghost Transformation Sequence ──
+# Kill Alice via dev terminal to test if she switches to ghost_soul.png instead of freezing
+kill Alice
+sleep 2
+
+# ── Phase 3: Launching Revival and Defensive Cover ──
+# Set active stream context to Bob and command him to revive Alice
+join Bob
+sleep 1
+revive @Alice
+
+# Give Bob 4 seconds to travel towards Alice's ghost perimeter line
+sleep 4
+
+# Switch active stream context to Charlie. He issues a guard call to protect Bob
+join Charlie
+sleep 1
+cover @Bob
+
+# Wait a brief moment to watch Charlie rearrange path priorities toward Bob's front
+sleep 2
+
+# ── Phase 4: Combat Escalation & Interception Physics ──
+# Deploy an active monster squadron to see if Charlie leaves Bob's front to hunt the threat
+wave normal
+print ⚔️ [TEST] Wave spawned! Observe if Charlie targets the enemy closest to Bob!
+sleep 5
+
+# ── Phase 5: Testing TikTok Likes Interactions ──
+# Bob receives double-tap packets while standing in range to progress revival
+join Bob
+like 5
+sleep 1
+like 5
+print 🎉 [TEST] Alice should complete revival and swap textures back to default!
+sleep 3
+
+# Charlie is out of combat now — test if likes give him a visible temporary speed sprint
+join Charlie
+like 10
+print ⚡ [TEST] Charlie should sprint forward with a 1.5x speed boost multiplier!
+sleep 4
+
+# Spawn a final boss challenge to verify full team wrap-up capabilities
+wave boss

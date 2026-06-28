@@ -255,7 +255,7 @@ class SanctumSiegeGame extends FlameGame {
 
       // Update each reviver: check alive + distance to ghost
       bool anyAlive = false;
-      for (final slot in session.revivers) {
+      for (final slot in session.revivers.toList()) {
         final reviver = _findAngelByUserId(
           slot.userId,
           username: slot.username,
@@ -853,7 +853,7 @@ class SanctumSiegeGame extends FlameGame {
         .toList();
     final angels = world.children
         .whereType<AngelSoldier>()
-        .where((c) => c.isMounted && c.isActiveCombatant)
+        .where((c) => c.isMounted && c.isAlive)
         .toList();
     final queen = world.children
         .whereType<AngelQueen>()
@@ -984,8 +984,9 @@ class SanctumSiegeGame extends FlameGame {
             .where((c) => c.isMounted && c.isAlive && c.username == e.username)
             .firstOrNull;
         if (soldier != null) {
-          soldier.state = SoldierState.ghost;
-          print('[game] ${e.username} killed by dev command');
+          // Use takeDamage to invoke the full ghost asset swap chain
+          soldier.takeDamage(soldier.hp);
+          print('[game] ${e.username} killed cleanly via dev command path');
         } else {
           print('[game] kill: ${e.username} not found or already dead');
         }
