@@ -39,6 +39,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
   @override
   void initState() {
     super.initState();
+    ctrl.startCountdown();
     _glowCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
@@ -154,6 +155,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
   void dispose() {
     _glowCtrl.dispose();
     _relay.dispose();
+    ctrl.stopCountdown();
     super.dispose();
   }
 

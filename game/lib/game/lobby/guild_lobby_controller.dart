@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 // ══════════════════════════════════════════════════
@@ -65,6 +66,41 @@ class GuildLobbyController extends ChangeNotifier {
 
   /// Called when the match transition animation finishes.
   VoidCallback? onMatchReady;
+
+  /// 1-second periodic timer that ticks the countdown down.
+  Timer? _tickTimer;
+
+  /// Start the countdown timer. Pass a callback for when ranking ends.
+  void startCountdown() {
+    _tickTimer?.cancel();
+    _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+  }
+
+  void _tick() {
+    if (phase == LobbyPhase.ranking) {
+      if (countdownSeconds > 0) {
+        countdownSeconds--;
+        notifyListeners();
+      }
+      if (countdownSeconds <= 0) {
+        phase = LobbyPhase.classAssignment;
+        countdownSeconds = 180;
+        classTimerSeconds = 30;
+        notifyListeners();
+      }
+    } else if (phase == LobbyPhase.classAssignment) {
+      if (classTimerSeconds > 0) {
+        classTimerSeconds--;
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Stop the countdown timer (e.g. on dispose).
+  void stopCountdown() {
+    _tickTimer?.cancel();
+    _tickTimer = null;
+  }
 
   /// Active point popup animations — the UI renders these as floating overlays.
   final List<PointPopup> activePopups = [];
