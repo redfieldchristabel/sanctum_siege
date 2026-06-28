@@ -311,6 +311,41 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
               color: _darkBrown.withValues(alpha: 0.7),
             ),
           ),
+          // Instructional hints (hidden during class assignment)
+          if (ctrl.phase == LobbyPhase.ranking)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.thumb_up, size: 11,
+                      color: _darkBrown.withValues(alpha: 0.5)),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Like to climb',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 3,
+                      color: _darkBrown.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Icon(Icons.star, size: 11,
+                      color: _gold.withValues(alpha: 0.7)),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Follow = 2x points',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 3,
+                      color: _gold.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           const SizedBox(height: 4),
           Row(
             children: [
@@ -634,36 +669,6 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
               _footerChip(Icons.people, '$filled / 18 Heroes'),
               const SizedBox(width: 16),
               _footerChip(Icons.favorite, '$totalPoints pts'),
-            ],
-          ),
-          const SizedBox(height: 6),
-          // Instructional hints
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.thumb_up, size: 10, color: _gold.withValues(alpha: 0.6)),
-              const SizedBox(width: 4),
-              Text(
-                'Like to climb',
-                style: TextStyle(
-                  fontSize: 8,
-                  fontWeight: FontWeight.w500,
-                  color: _darkBrown.withValues(alpha: 0.5),
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Icon(Icons.star, size: 10, color: _gold.withValues(alpha: 0.6)),
-              const SizedBox(width: 4),
-              Text(
-                'Follow = 2x points',
-                style: TextStyle(
-                  fontSize: 8,
-                  fontWeight: FontWeight.w700,
-                  color: _gold.withValues(alpha: 0.7),
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 4),
