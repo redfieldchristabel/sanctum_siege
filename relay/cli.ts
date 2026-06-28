@@ -333,32 +333,71 @@ function executeLine(line: string): boolean {
 
 /** Tab auto-completion handler for readline */
 function completer(line: string): [string[], string] {
-  const words = line.split(/\s+/);
-
-  if (words.length <= 1) {
+  // If there are no spaces yet, we are completing the primary command name
+  if (!line.includes(" ")) {
+    // Filter out single-letter aliases so they don't cause artificial conflicts
     const commandCompletions = [
-      "be", "become", "join", "like", "gift", "comment", "revive", "cover", "leave",
-      "start", "go", "kill", "wave", "angel", "spawn", "melee",
-      "config", "march", "lobby", "lobby_clear", "presets", "run", "help", "exit"
+      "become", "be", "join", "like", "gift", "comment", "chat",
+      "revive", "cover", "leave", "start", "go", "kill", "wave",
+      "angel", "spawn", "melee", "config", "set", "march",
+      "lobby", "lobby_clear", "presets", "run", "help", "exit", "quit"
     ];
+
     const hits = commandCompletions.filter((c) => c.startsWith(line.toLowerCase()));
+
+    // Commands that require arguments get an automatic trailing space when uniquely matched
+    const commandsWithArgs = [
+      "become", "be", "join", "like", "gift", "comment", "chat",
+      "revive", "cover", "kill", "wave", "angel", "spawn", "melee",
+      "config", "set", "run"
+    ];
+
+    // Scenario A: Exactly one unique match found -> auto-complete and append a trailing space
+    if (hits.length === 1 && hits[0] != null) {
+      const matchedCmd = hits[0];
+      const finalCompletion = commandsWithArgs.includes(matchedCmd) ? `${matchedCmd} ` : matchedCmd;
+      return [[finalCompletion], line];
+    }
+
+    // Scenario B: Multiple conflicting options found -> show options on double-tab
     return [hits.length ? hits : commandCompletions, line];
   }
 
-  const command = words[0]?.toLowerCase() ?? "";
-  if (!command) return [[], line];
-  const argPrefix = words.slice(1).join(" ");
+  // Case 2: A space exists, meaning we are completing arguments!
+  const firstSpaceIndex = line.indexOf(" ");
+  const command = line.substring(0, firstSpaceIndex).toLowerCase().trim();
+  const argPrefix = line.substring(firstSpaceIndex + 1);
 
+  // Preset auto-complete for the 'run' command
+  if (command === "run") {
+    try {
+      if (fs.existsSync(PRESETS_DIR)) {
+        const files = fs.readdirSync(PRESETS_DIR)
+          .filter((f) => f.endsWith(".txt"))
+          .map((f) => f.replace(/\.txt$/, ""));
+
+        const hits = files.filter((name) => name.toLowerCase().startsWith(argPrefix.toLowerCase()));
+        const completions = hits.map((h) => `${line.substring(0, firstSpaceIndex)} ${h}`);
+        return [completions, line];
+      }
+    } catch { /* Fail silently */ }
+    return [[], line];
+  }
+
+  // Auto-complete active user names from context registry
   if (["kill", "k", "revive", "r", "spawn", "sp", "melee", "m", "be", "become", "cover", "cov"].includes(command)) {
     const usernames = Array.from(_userMap.keys());
     const hits = usernames.filter((name) => name.toLowerCase().startsWith(argPrefix.toLowerCase()));
-    return [hits.map((h) => `${words[0]} ${h}`), line];
+    const completions = hits.map((h) => `${line.substring(0, firstSpaceIndex)} ${h}`);
+    return [completions, line];
   }
 
+  // Auto-complete devil wave difficulties
   if (["wave", "w"].includes(command)) {
     const difficulties = ["normal", "hard", "boss"];
     const hits = difficulties.filter((d) => d.startsWith(argPrefix.toLowerCase()));
-    return [hits.map((h) => `${words[0]} ${h}`), line];
+    const completions = hits.map((h) => `${line.substring(0, firstSpaceIndex)} ${h}`);
+    return [completions, line];
   }
 
   return [[], line];

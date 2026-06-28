@@ -17,7 +17,7 @@ class AngelQueen extends PositionComponent {
     // Sprite has 35px transparent padding below feet.
     // Use bottomCenter anchor + position offset to keep feet at y:1220.
     anchor = Anchor.bottomCenter;
-    debugMode = true;
+    // debugMode = true;
 
     // Load 4 breathing idle frames concurrently
     final frameFutures = List.generate(4, (i) {
