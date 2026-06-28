@@ -65,7 +65,7 @@ abstract class AngelSoldier extends SpriteComponent {
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    anchor = Anchor.bottomCenter;
+    anchor = Anchor.center;
     await loadVisuals();
     _defaultSprite = sprite;
     _ghostSprite = await Sprite.load('ghost_soul.png');

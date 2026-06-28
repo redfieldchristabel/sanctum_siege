@@ -65,6 +65,8 @@ flutter:
     - assets/images/sunfletcher_sheet.png
     - assets/images/default_soldier.png
     - assets/images/ghost_soul.png
+    - assets/images/angel_knight/
+    - assets/images/angel_knight/attack/
     - assets/images/angel_queen/rotations/
     - assets/images/angel_queen/animations/Breathing_Idle/south/
     - assets/images/angel_queen/animations/Both_of_her_hands_are_raised_and_clasped_together/south/

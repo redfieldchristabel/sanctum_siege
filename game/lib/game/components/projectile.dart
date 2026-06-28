@@ -17,10 +17,9 @@ class Projectile extends PositionComponent {
     required double startY,
     required double targetX,
     required double targetY,
-    required bool isAngel,
+    required this.isAngel,
     double speed = 320,
-  })  : isAngel = isAngel,
-        _maxDist = sqrt(
+  })  : _maxDist = sqrt(
             (targetX - startX) * (targetX - startX) +
             (targetY - startY) * (targetY - startY)),
         _speed = speed,

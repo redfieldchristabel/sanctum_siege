@@ -7,7 +7,7 @@ import 'components/devil_soldier.dart';
 import 'components/devil_king.dart';
 import 'components/angel_soldier.dart';
 import 'components/sunfletcher.dart';
-import 'components/angel_melee.dart';
+import 'components/angel_knight.dart';
 import 'components/angel_queen.dart';
 import 'components/projectile.dart';
 
@@ -606,7 +606,7 @@ class SanctumSiegeGame extends FlameGame {
 
   void _processMeleeCombat(double dt) {
     final melee = world.children
-        .whereType<AngelMelee>()
+        .whereType<AngelKnight>()
         .where((c) => c.isMounted && c.isActiveCombatant)
         .toList();
     final devils = world.children
@@ -648,6 +648,7 @@ class SanctumSiegeGame extends FlameGame {
           }
           if (hitTarget != null) {
             (hitTarget as dynamic).takeDamage(m.meleeDamage);
+            m.triggerAttack();
             print('[melee] ${m.username} slashes for ${m.meleeDamage} damage');
           }
         }
@@ -884,13 +885,13 @@ class SanctumSiegeGame extends FlameGame {
   void _spawnMelee(String userId, String username) {
     final rng = Random();
     world.add(
-      AngelMelee(userId: userId, username: username)
+      AngelKnight(userId: userId, username: username)
         ..position = Vector2(
           60 + rng.nextDouble() * 600,
           900 + rng.nextDouble() * 200,
         ),
     );
-    print('[game] Melee soldier $username deployed');
+    print('[game] Knight $username deployed');
   }
 
   /// Spawn an elite soldier from the lobby selection.
@@ -904,7 +905,7 @@ class SanctumSiegeGame extends FlameGame {
     final baseY = isMelee ? 1080.0 : 1140.0;
     final yOffset = (hash % 2) * 30.0 + rng.nextDouble() * 20;
     final soldier = isMelee
-        ? AngelMelee(userId: 'lobby_$username', username: username)
+        ? AngelKnight(userId: 'lobby_$username', username: username)
         : Sunfletcher(userId: 'lobby_$username', username: username);
     soldier.position = Vector2(40 + (hash * 7.3 % 640), baseY + yOffset);
     world.add(soldier);
