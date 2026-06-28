@@ -389,6 +389,9 @@ class SanctumSiegeGame extends FlameGame {
       threshold: 10, // archer class
       isOwnerRevive: isOwner,
     );
+
+    // Broadcast trigger for viewers to act upon
+    print('📢 [SYSTEM] LIVE ALERTS: Player $reviverUsername is reviving $ghostUsername! Send "cover $reviverUsername" or "c" to clear their lane!');
   }
 
   /// Contribute likes to any revive where the liker is a reviver.
@@ -409,7 +412,7 @@ class SanctumSiegeGame extends FlameGame {
     }
   }
 
-  /// Parse a chat comment for "revive @username" or "cancel" command.
+  /// Parse a chat comment for revive/cover/cancel commands.
   void _handleComment(CommentEvent e) {
     if (_phase != GamePhase.fighting) return;
     if (_leftUsers.contains(e.userId)) return;
@@ -417,37 +420,87 @@ class SanctumSiegeGame extends FlameGame {
     final text = e.text.trim();
     final lower = text.toLowerCase();
 
-    // Check for cancel command
-    if (lower == 'cancel' || lower == 'cancel revive') {
+    // 1. UNIFIED CANCELLATION CHECK
+    if (lower == 'cancel' || lower == 'cancel revive' || lower == 'cancel cover') {
+      final soldier = _findAngelByUserId(e.userId, username: e.username);
+      if (soldier != null) {
+        soldier.cancelRevive();
+        soldier.coverTarget = null;
+        print('[game] ${e.username} stopped all active actions');
+      }
       for (final session in _reviveSessions.values) {
         if (!session.isActive) continue;
-        final slot = session.revivers
-            .where((r) => r.userId == e.userId)
-            .firstOrNull;
-        if (slot == null) continue;
-        final reviver = _findAngelByUserId(e.userId, username: e.username);
-        reviver?.cancelRevive();
         session.removeReviver(e.userId);
         if (session.revivers.isEmpty) {
           session.freeAll();
           final ghost = _findGhost(session.ghostUsername);
           if (ghost != null) ghost.isBeingRevived = false;
         }
-        print(
-          '[revive] ${e.username} cancelled — ${session.revivers.length} reviver(s) remain',
-        );
-        break;
       }
       return;
     }
 
-    final match = RegExp(
-      r'^revive\s+@?(\S+)',
-      caseSensitive: false,
-    ).firstMatch(text);
-    if (match == null) return;
-    final ghostUsername = match.group(1)!;
-    _startRevive(ghostUsername, e.userId, e.username);
+    // 2. SHORTCUT PROTECTION RULE: Block simple "r" for base classes
+    final shortReviveMatch = RegExp(r'^r\s+@?(\S+)', caseSensitive: false).firstMatch(text);
+    if (shortReviveMatch != null) {
+      print('⚠️ [REJECTED] Shortcut "r" is locked. Full word "revive" is required for your class specialty!');
+      return;
+    }
+
+    // Standard longform revive check
+    final reviveMatch = RegExp(r'^revive\s+@?(\S+)', caseSensitive: false).firstMatch(text);
+    if (reviveMatch != null) {
+      final ghostUsername = reviveMatch.group(1)!;
+      _startRevive(ghostUsername, e.userId, e.username);
+      return;
+    }
+
+    // 3. THE INTERCEPTOR ENGAGEMENT INTERFACE (cover, guard, c, g)
+    final coverMatch = RegExp(r'^(cover|guard|c|g)(?:\s+@?(\S+))?$', caseSensitive: false).firstMatch(text);
+    if (coverMatch != null) {
+      final targetUsername = coverMatch.group(2);
+      final mySoldier = _findAngelByUserId(e.userId, username: e.username);
+
+      if (mySoldier == null || !mySoldier.isAlive) return;
+
+      AngelSoldier? allyToProtect;
+
+      if (targetUsername != null && targetUsername.isNotEmpty) {
+        // Context A: Explicit name assignment lookup
+        allyToProtect = world.children
+            .whereType<AngelSoldier>()
+            .where((c) => c.isMounted && c.isAlive && c.username.toLowerCase() == targetUsername.toLowerCase())
+            .firstOrNull;
+      } else {
+        // Context B: Reply fallback -> find any teammate actively carrying out a revival target sequence
+        allyToProtect = world.children
+            .whereType<AngelSoldier>()
+            .where((c) => c.isMounted && c.isAlive && c.isReviving)
+            .firstOrNull;
+
+        // Context C: If no active channels found, find any unit listed inside current active revive slots
+        if (allyToProtect == null) {
+          for (final session in _reviveSessions.values) {
+            if (!session.isActive) continue;
+            for (final slot in session.revivers) {
+              final activeReviver = _findAngelByUserId(slot.userId, username: slot.username);
+              if (activeReviver != null && activeReviver.isAlive) {
+                allyToProtect = activeReviver;
+                break;
+              }
+            }
+            if (allyToProtect != null) break;
+          }
+        }
+      }
+
+      if (allyToProtect != null && allyToProtect != mySoldier) {
+        mySoldier.cancelRevive(); // Exit existing streams/actions
+        mySoldier.coverTarget = allyToProtect; // Lock tracking onto the savior
+        print('🛡️ [DEFENSE ACTIVE] ${mySoldier.username} is now actively intercepting threats around ${allyToProtect.username}!');
+      }
+      return;
+    }
   }
 
   /// Handle a viewer leaving the stream mid-match.
@@ -523,6 +576,7 @@ class SanctumSiegeGame extends FlameGame {
 
     // Angels: find nearest devil, walk toward it or stop in range
     for (final a in angels) {
+      if (a.coverTarget != null) continue; // Bodyguards are managed by their interceptor brain updates
       final nearestPos = _findNearestPos(a.position, allAngelTargets);
       if (nearestPos != null) {
         final dist = a.position.distanceTo(nearestPos);
@@ -621,6 +675,33 @@ class SanctumSiegeGame extends FlameGame {
     final targets = [...devils, if (king != null) king];
 
     for (final m in melee) {
+      if (m.coverTarget != null) {
+        // Interceptor Mode: If an enemy gets in close range while I protect my ally, smash them!
+        final nearest = _findNearestPos(m.position, targets);
+        if (nearest != null && m.position.distanceTo(nearest) <= m.meleeRange) {
+          final timer = _meleeTimers.putIfAbsent(m, () => 0);
+          _meleeTimers[m] = timer + dt;
+          if (_meleeTimers[m]! >= m.meleeInterval) {
+            _meleeTimers[m] = 0;
+            Component? hitTarget;
+            double bestDist = m.meleeRange;
+            for (final t in targets) {
+              if (!t.isMounted) continue;
+              final d = m.position.distanceTo((t as dynamic).position);
+              if (d < bestDist) {
+                bestDist = d;
+                hitTarget = t;
+              }
+            }
+            if (hitTarget != null) {
+              (hitTarget as dynamic).takeDamage(m.meleeDamage);
+              print('[melee interceptor] ${m.username} struck threat near ${m.coverTarget!.username}!');
+            }
+          }
+        }
+        continue; // Skip baseline automated forward movement
+      }
+
       final nearest = _findNearestPos(m.position, targets);
       if (nearest == null) {
         m.moveTarget = null; // no enemies — default move up

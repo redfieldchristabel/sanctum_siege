@@ -35,6 +35,9 @@ class DevilSoldier extends PositionComponent {
   void update(double dt) {
     super.update(dt);
 
+    // Layer sort: active devils sorted by Y to step over ghosts
+    priority = 100 + position.y.toInt();
+
     if (state == SoldierState.dead) return;
 
     // ── Burning death: on fire for 7s, then gone ──

@@ -15,6 +15,12 @@ class DevilKing extends PositionComponent {
     anchor = Anchor.bottomCenter;
   }
 
+  @override
+  void update(double dt) {
+    super.update(dt);
+    priority = 100 + position.y.toInt();
+  }
+
   bool takeDamage(int amount) {
     hp -= amount;
     if (hp <= 0) {

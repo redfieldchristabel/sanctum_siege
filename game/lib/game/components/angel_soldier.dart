@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'package:flame/components.dart';
 import 'package:flutter/painting.dart';
+import 'devil_soldier.dart';
+import 'devil_king.dart';
 
 /// Soldier lifecycle states.
 enum SoldierState { alive, ghost, dead, burning }
@@ -35,6 +37,10 @@ abstract class AngelSoldier extends SpriteComponent {
   double reviveProgress = 0.0;
   double reviveBeamTimer = 0;
 
+  // ── Cover / Bodyguard State ──
+  AngelSoldier? coverTarget;
+  bool get isCovering => coverTarget != null;
+
   // ── Sprites ──
   Sprite? _ghostSprite;
   Sprite? _defaultSprite;
@@ -47,20 +53,17 @@ abstract class AngelSoldier extends SpriteComponent {
 
   // ── Getters ──
   bool get isAlive => state == SoldierState.alive;
-  bool get isActiveCombatant => state == SoldierState.alive && !isReviving;
+  bool get isActiveCombatant => state == SoldierState.alive && !isReviving && coverTarget == null;
   bool get hasArrivedAtGhost => isReviving && _hasArrived;
   int get maxHp => 3;
 
   AngelSoldier({required this.userId, required this.username})
       : super(size: Vector2(64, 64));
 
-  /// Override in subclass to load a custom sprite (e.g. sprite sheet).
-  /// Default: loads the floating orb placeholder.
   Future<void> loadVisuals() async {
     sprite = await Sprite.load('default_soldier.png');
   }
 
-  /// Hook called after [revive()] — subclass resets animation state here.
   void onRevive() {}
 
   @override
@@ -79,6 +82,7 @@ abstract class AngelSoldier extends SpriteComponent {
     isReviving = true;
     _hasArrived = false;
     moveTarget = ghostPosition.clone();
+    coverTarget = null; // Clear guarding if starting a revive
   }
 
   void cancelRevive() {
@@ -86,6 +90,7 @@ abstract class AngelSoldier extends SpriteComponent {
     isReviving = false;
     _hasArrived = false;
     moveTarget = null;
+    coverTarget = null; // Clear guard assignment upon cancel
   }
 
   void revive({bool fullHp = false}) {
@@ -98,7 +103,7 @@ abstract class AngelSoldier extends SpriteComponent {
     isBeingRevived = false;
     reviveBeamTimer = 0;
     reviveProgress = 0;
-    // Restore default visuals — ghost sprite swap is undone
+    coverTarget = null;
     sprite = _defaultSprite;
     paint.color = const Color(0xFFFFFFFF);
     onRevive();
@@ -109,8 +114,8 @@ abstract class AngelSoldier extends SpriteComponent {
     hp -= amount;
     if (hp <= 0) {
       state = SoldierState.ghost;
-      // Swap to ghost soul sprite — SpriteComponent.render() draws it natively
       sprite = _ghostSprite;
+      cancelRevive();
       return true;
     }
     return false;
@@ -124,33 +129,30 @@ abstract class AngelSoldier extends SpriteComponent {
 
     if (state == SoldierState.dead) return;
 
-    // 1. VISUAL SORTING (Z-INDEX): ghosts in background, alive sorted by Y
+    // 1. VISUAL LAYER SORTING (Z-INDEX)
     if (state == SoldierState.ghost) {
-      priority = 0; // Push ghosts to the absolute background layer
+      priority = 1; // Drop ghosts completely flat to the floor beneath active units
       moveTarget = null;
       if (reviveBeamTimer > 0) reviveBeamTimer += dt;
       return;
     } else {
-      // Living soldiers get priority sorted by Y — lower on screen = in front
-      priority = 100 + position.y.toInt();
+      priority = 100 + position.y.toInt(); // Re-sort sorting lines continuously
     }
 
     if (state == SoldierState.burning) return;
-
     time += dt;
 
-    // 2. ANTI-STACKING (SEPARATION PHYSICS): prevent soldiers overlapping
+    // 2. ANTI-STACKING (SEPARATION COMFORT NUDGES)
     if (state == SoldierState.alive) {
       Vector2 pushForce = Vector2.zero();
       int overlapCount = 0;
 
-      // Check all other alive angel comrades
       final comrades = parent?.children.whereType<AngelSoldier>() ?? [];
       for (final other in comrades) {
         if (other == this || other.state != SoldierState.alive) continue;
 
         final dist = position.distanceTo(other.position);
-        const personalSpaceRadius = 32.0;
+        const personalSpaceRadius = 36.0;
 
         if (dist < personalSpaceRadius && dist > 0) {
           final pushDirection = (position - other.position)..normalize();
@@ -159,9 +161,54 @@ abstract class AngelSoldier extends SpriteComponent {
           overlapCount++;
         }
       }
-
       if (overlapCount > 0) {
         position += pushForce * dt * 2.5;
+      }
+    }
+
+    // 3. THE ACTIVE INTERCEPTOR PROTECTION MATRIX
+    if (coverTarget != null) {
+      if (!coverTarget!.isMounted || !coverTarget!.isAlive) {
+        coverTarget = null; // Release bodyguard duties if target vanishes
+      } else {
+        // Collect all potential active threats on the map
+        final enemies = parent?.children.where((c) =>
+          (c is DevilSoldier && c.isActiveCombatant) ||
+          (c is DevilKing && c.isMounted)
+        ) ?? [];
+
+        Component? closestThreat;
+        double closestDist = double.infinity;
+
+        // Find the closest threat to the person I am covering
+        for (final enemy in enemies) {
+          final enemyPos = (enemy as PositionComponent).position;
+          final dist = coverTarget!.position.distanceTo(enemyPos);
+          if (dist < closestDist) {
+            closestDist = dist;
+            closestThreat = enemy;
+          }
+        }
+
+        if (closestThreat != null) {
+          // STATE B: Threat Detected! Intercept and lock coordinates directly onto them
+          moveTarget = (closestThreat as PositionComponent).position.clone();
+        } else {
+          // STATE A: Quiet Moments -> Arrive directly at the target's front (slightly above them)
+          moveTarget = coverTarget!.position + Vector2(0, -35);
+        }
+
+        // Apply active translation drift movement
+        if (moveTarget != null) {
+          final dx = moveTarget!.x - position.x;
+          final dy = moveTarget!.y - position.y;
+          final dist = sqrt(dx * dx + dy * dy);
+          if (dist > 5) {
+            position.x += (dx / dist) * moveSpeed * dt;
+            position.y += (dy / dist) * moveSpeed * dt;
+          }
+        }
+        return; // Halt base up-marching logic
       }
     }
 
@@ -202,11 +249,10 @@ abstract class AngelSoldier extends SpriteComponent {
     }
   }
 
-  // ── Render — sprite is drawn by super.render(canvas), then overlays on top.
+  // ── Render ──
 
   @override
   void render(Canvas canvas) {
-    // Let Flame draw the base sprite texture first
     super.render(canvas);
 
     if (state == SoldierState.dead) return;
@@ -227,32 +273,35 @@ abstract class AngelSoldier extends SpriteComponent {
 
     if (state == SoldierState.burning) return;
 
-    // Alive — name label above the character
+    // Alive — Name tag enclosed inside high-contrast capsule backgrounds
     final cx = size.x / 2;
-    final ns = TextStyle(
-      color: const Color(0xFFFFFFFF), fontSize: 8, fontWeight: FontWeight.bold,
-      shadows: [const Shadow(color: Color(0xFF000000), blurRadius: 2, offset: Offset(1, 1))]);
+    final ns = TextStyle(color: const Color(0xFFFFFFFF), fontSize: 9, fontWeight: FontWeight.bold);
     final tp = TextPainter(
-      text: TextSpan(text: username.length > 6 ? '${username.substring(0, 6)}..' : username, style: ns),
+      text: TextSpan(text: username.length > 7 ? '${username.substring(0, 7)}..' : username, style: ns),
       textDirection: TextDirection.ltr)..layout();
-    tp.paint(canvas, Offset(cx - tp.width / 2, -24));
 
-    // HP bar (always visible, empty bar shows at full HP)
-    canvas.drawRect(Rect.fromLTWH(cx - 10, -10, 20, 3), Paint()..color = const Color(0x66000000));
+    final badgeX = cx - tp.width / 2;
+    const badgeY = -28.0;
+
+    final pillRect = Rect.fromLTWH(badgeX - 4, badgeY - 1, tp.width + 8, tp.height + 2);
+    canvas.drawRRect(RRect.fromRectAndRadius(pillRect, const Radius.circular(4)), Paint()..color = const Color(0x99000000));
+    tp.paint(canvas, Offset(badgeX, badgeY));
+
+    // HP Bar safely padded downward to prevent crowding bounds
+    canvas.drawRect(Rect.fromLTWH(cx - 12, -11, 24, 4), Paint()..color = const Color(0x66000000));
     if (hp > 0) {
       final hpRatio = hp / maxHp;
       final hpColor = hpRatio > 0.5 ? const Color(0xFF44AA44)
           : hpRatio > 0.25 ? const Color(0xFFCCAA22)
           : const Color(0xFFCC2222);
-      canvas.drawRect(Rect.fromLTWH(cx - 10, -10, 20 * hpRatio, 3), Paint()..color = hpColor);
+      canvas.drawRect(Rect.fromLTWH(cx - 12, -11, 24 * hpRatio, 4), Paint()..color = hpColor);
     }
 
     if (isReviving) renderMagicCircle(canvas);
   }
 
-  // ── Render helpers (public for subclass access) ──
+  // ── Render helpers ──
 
-  /// Golden anime-style magic circle.
   void renderMagicCircle(Canvas canvas) {
     final cx = size.x / 2;
     final pulse = sin(time * 3.0) * 0.2 + 0.8;
@@ -278,7 +327,6 @@ abstract class AngelSoldier extends SpriteComponent {
     canvas.restore();
   }
 
-  /// Progress bar above ghost.
   void renderReviveProgress(Canvas canvas, double progress) {
     final cx = size.x / 2;
     final barW = 30.0, barH = 4.0, barY = -8.0;
@@ -291,7 +339,6 @@ abstract class AngelSoldier extends SpriteComponent {
           .createShader(Rect.fromLTWH(cx - barW/2, barY, barW, barH)));
   }
 
-  /// Big golden UFO beam.
   void renderReviveBeam(Canvas canvas) {
     final cx = size.x / 2;
     final bp = sin(time * 20.0) * 0.2 + 0.8;
@@ -306,16 +353,17 @@ abstract class AngelSoldier extends SpriteComponent {
           .createShader(Rect.fromLTWH(cx - bw, -80, bw * 2, size.y + 60)));
   }
 
-  /// Ghost name label — drawn cleanly above the ghost soul sprite
   void renderGhostLabel(Canvas canvas) {
     final drift = sin(time * 1.2) * 2.0;
     canvas.save();
     canvas.translate(size.x / 2 + drift, 0);
-    final ns = TextStyle(color: const Color(0xCCCCDDFF), fontSize: 9, fontWeight: FontWeight.bold,
-      shadows: [const Shadow(color: Color(0xFF000000), blurRadius: 3, offset: Offset(1, 1))]);
+    final ns = TextStyle(color: const Color(0xCCCCDDFF), fontSize: 9, fontWeight: FontWeight.bold);
     final tp = TextPainter(text: TextSpan(text: username, style: ns), textDirection: TextDirection.ltr)..layout();
-    // Float right above the soul asset top boundary
-    tp.paint(canvas, Offset(-tp.width / 2, -16));
+
+    final pillRect = Rect.fromLTWH(-tp.width / 2 - 4, -14, tp.width + 8, tp.height + 2);
+    canvas.drawRRect(RRect.fromRectAndRadius(pillRect, const Radius.circular(4)), Paint()..color = const Color(0x99000000));
+
+    tp.paint(canvas, Offset(-tp.width / 2, -13));
     canvas.restore();
   }
 }
