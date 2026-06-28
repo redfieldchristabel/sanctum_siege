@@ -41,6 +41,7 @@ export interface GiftData {
   username: string;
   giftName: string;
   count: number;
+  coinCost?: number;
   isFollower?: boolean;
 }
 

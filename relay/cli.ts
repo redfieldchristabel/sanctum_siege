@@ -14,7 +14,7 @@ const RELAY_URL = process.env.RELAY_URL ?? "ws://localhost:8080/dev";
 const PRESETS_DIR = path.resolve(import.meta.dirname!, "presets");
 
 // ─── Active user tracking & context ─────────────────────────
-let _activeUser: { userId: string; username: string } | null = null;
+let _activeUser: { userId: string; username: string; isMockFollower: boolean } | null = null;
 
 // Registry map of username -> userId to retain consistency across sessions
 const _userMap = new Map<string, string>([
@@ -38,6 +38,7 @@ const HELP = `
     revive <user>    Send revive request (active user's soldier walks to ghost)
     cover <user>     Send cover request (active user's soldier guards target)
     leave            Active user leaves
+    follow           Toggle follower status (current: on by default)
 
   Game Admin:
     start / go       Start game (idle → 3s countdown → fight)
@@ -94,7 +95,7 @@ const commands: CommandEntry[] = [
       const username = name.trim();
       const userId = _userMap.get(username.toLowerCase()) ?? `dev_${username.toLowerCase()}`;
       _userMap.set(username.toLowerCase(), userId);
-      _activeUser = { userId, username };
+      _activeUser = { userId, username, isMockFollower: true };
       console.log(`  👤 Switched context! You are now acting as: ${username}`);
       return null; // Handled internally, nothing sent to relay server
     },
@@ -106,7 +107,7 @@ const commands: CommandEntry[] = [
       const username = name.trim();
       const userId = _userMap.get(username.toLowerCase()) ?? `dev_${Date.now()}`;
       _userMap.set(username.toLowerCase(), userId);
-      _activeUser = { userId, username };
+      _activeUser = { userId, username, isMockFollower: true };
       return { event: "join", data: { userId, username, isGifter: false } };
     },
   },
@@ -117,7 +118,7 @@ const commands: CommandEntry[] = [
     build: ([, count], u) => {
       const c = count ? parseInt(count) : 1;
       console.log(`  [${u.username}] sends ${c} likes`);
-      return { event: "like", data: { userId: u.userId, username: u.username, count: c, isFollower: true } };
+      return { event: "like", data: { userId: u.userId, username: u.username, count: c, isFollower: u.isMockFollower } };
     },
   },
   // ── TikTok event: gift ──────────────────────────
@@ -134,8 +135,8 @@ const commands: CommandEntry[] = [
           username: u.username,
           giftName: giftName.trim(),
           count: c,
-          lobbyPoints: calcGiftPoints(giftName, c),
-          isFollower: true,
+          coinCost: getCoinCost(giftName),
+          isFollower: u.isMockFollower,
         },
       };
     },
@@ -171,13 +172,23 @@ const commands: CommandEntry[] = [
   },
   // ── TikTok event: leave ─────────────────────────
   {
-    pattern: /^(?:leave|l)\s*(\S*)$/i,
+    pattern: /^(?:leave|l)\\s*(\\S*)$/i,
     requiresUser: true,
     build: ([, id], u) => {
       const userId = id || u.userId;
       console.log(`  [${u.username}] leaves the stream room`);
       if (!id) _activeUser = null;
       return { event: "leave", data: { userId } };
+    },
+  },
+  // ── Toggle follower status ──────────────────────
+  {
+    pattern: /^follow$/i,
+    requiresUser: true,
+    build: ([], u) => {
+      u.isMockFollower = !u.isMockFollower;
+      console.log(`  👤 Follower status toggled: ${u.isMockFollower ? "FOLLOWER" : "NON-FOLLOWER"}`);
+      return null;
     },
   },
   // ── Game admin ──────────────────────────────────
@@ -253,13 +264,13 @@ const commands: CommandEntry[] = [
   },
 ];
 
-/** Convert gift name to lobby points. */
-function calcGiftPoints(name: string, count: number): number {
+/** Convert gift name to coin cost (base price per unit). */
+function getCoinCost(name: string): number {
   const lower = name.toLowerCase();
-  if (lower.includes("capsule") || lower.includes("lion")) return 500 * count;
-  if (lower.includes("donut") || lower.includes("diamond")) return 50 * count;
-  if (lower.includes("rose") || lower.includes("flower")) return 10 * count;
-  return 0;
+  if (lower.includes("capsule") || lower.includes("lion")) return 50;
+  if (lower.includes("donut") || lower.includes("diamond")) return 5;
+  if (lower.includes("rose") || lower.includes("flower")) return 1;
+  return 1;
 }
 
 // ─── WebSocket connection ────────────────────────────────────
@@ -326,7 +337,7 @@ function executeLine(line: string): boolean {
         return true;
       }
 
-      const mockFallback = { userId: "dev", username: "Dev" };
+      const mockFallback = { userId: "dev", username: "Dev", isMockFollower: true };
       const result = cmd.build(m, _activeUser ?? mockFallback);
 
       if (result) {
@@ -348,7 +359,7 @@ function completer(line: string): [string[], string] {
       "revive", "cover", "leave", "start", "go", "kill", "wave",
       "angel", "spawn", "melee", "config", "set", "march",
       "lobby", "lobby_clear", "presets", "run", "help", "exit", "quit",
-      "next", "reset"
+      "next", "reset", "follow"
     ];
 
     const hits = commandCompletions.filter((c) => c.startsWith(line.toLowerCase()));
@@ -508,7 +519,7 @@ async function interactive(): Promise<void> {
         if (cmd.requiresUser && !_activeUser) {
           console.log("  ✗ Guard Error: You must specify a user first using 'be <name>' or 'join <name>' before using this command.");
         } else {
-          const mockFallback = { userId: "dev", username: "Dev" };
+          const mockFallback = { userId: "dev", username: "Dev", isMockFollower: true };
           const res = cmd.build(m, _activeUser ?? mockFallback);
           if (res) send(res);
         }

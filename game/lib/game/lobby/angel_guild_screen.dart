@@ -72,9 +72,9 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
           isGifter: e.isGifter,
         ));
       case LikeEvent e:
-        ctrl.triggerPointGainAnimation(e.username, e.count, isFollower: e.isFollower);
+        ctrl.processLikePoints(e.username, e.count, isFollower: e.isFollower);
       case GiftEvent e:
-        ctrl.triggerPointGainAnimation(e.username, e.lobbyPoints, isFollower: e.isFollower);
+        ctrl.processGiftPoints(e.username, coinCost: e.coinCost, count: e.count, isFollower: e.isFollower);
         ctrl.markAsGifter(e.username);
       case LobbyUpdateEvent _:
         _fillMockParty();
@@ -541,33 +541,64 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                     ),
             ),
             const SizedBox(width: 8),
-            // Avatar
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: player.isGifter
-                    ? const LinearGradient(
-                        colors: [_gold, Color(0xFFFFD700)])
-                    : const LinearGradient(
-                        colors: [Color(0xFF7B61FF), Color(0xFF00BCD4)]),
-                border: isTop3
-                    ? Border.all(color: _gold, width: 1.5)
-                    : null,
-              ),
-              child: Center(
-                child: Text(
-                  player.username.isNotEmpty
-                      ? player.username[0].toUpperCase()
-                      : '?',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+            // Avatar with follower badge
+            Stack(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: player.isGifter
+                        ? const LinearGradient(
+                            colors: [_gold, Color(0xFFFFD700)])
+                        : const LinearGradient(
+                            colors: [Color(0xFF7B61FF), Color(0xFF00BCD4)]),
+                    border: isTop3
+                        ? Border.all(color: _gold, width: 1.5)
+                        : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      player.username.isNotEmpty
+                          ? player.username[0].toUpperCase()
+                          : '?',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                // Follower 2x badge
+                if (player.isFollower)
+                  Positioned(
+                    right: -2,
+                    bottom: -2,
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: _gold,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color: Colors.white, width: 1),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          '2x',
+                          style: TextStyle(
+                            fontSize: 6,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF2C1A04),
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(width: 8),
             // Username + points

@@ -20,6 +20,7 @@ class PersistentStorage {
         'points': p.points,
         'isGifter': p.isGifter,
         'soldierClass': p.soldierClass,
+        'isFollower': p.isFollower,
       });
     }
 
@@ -42,6 +43,7 @@ class PersistentStorage {
           profilePicUrl: m['profilePicUrl'] as String? ?? '',
           points: m['points'] as int? ?? 0,
           isGifter: m['isGifter'] as bool? ?? false,
+          isFollower: m['isFollower'] as bool? ?? false,
           soldierClass: m['soldierClass'] as String?,
         );
       }).toList();

@@ -17,6 +17,7 @@ class LobbyPlayer {
   final String profilePicUrl;
   int points;
   bool isGifter; // true = ranks 1-13 (points slot), false = ranks 14-18 (wildcard)
+  bool isFollower; // true = this user follows the channel (2x multiplier)
 
   /// Assigned class: 'sunfletcher' or 'melee'. Null until class phase resolves.
   String? soldierClass;
@@ -26,6 +27,7 @@ class LobbyPlayer {
     required this.profilePicUrl,
     required this.points,
     required this.isGifter,
+    this.isFollower = false,
     this.soldierClass,
   });
 }
@@ -203,14 +205,37 @@ class GuildLobbyController extends ChangeNotifier {
 
   /// Add points to a specific player and trigger visual feedback.
   /// If [isFollower] is true, points are multiplied by 2 (follower bonus).
+  @Deprecated('Use processLikePoints or processGiftPoints instead')
   void triggerPointGainAnimation(String username, int pointsAdded, {bool isFollower = false}) {
+    _addPoints(username, pointsAdded, isFollower);
+  }
+
+  /// Process a like event.
+  /// Formula: count × 1, × 2 if follower.
+  void processLikePoints(String username, int count, {bool isFollower = false}) {
+    final points = isFollower ? count * 2 : count;
+    _addPoints(username, points, isFollower);
+  }
+
+  /// Process a gift event.
+  /// Formula: coinCost × count × 10, × 2 if follower.
+  void processGiftPoints(String username,
+      {required int coinCost, required int count, bool isFollower = false}) {
+    final base = coinCost * count * 10;
+    final points = isFollower ? base * 2 : base;
+    _addPoints(username, points, isFollower);
+  }
+
+  /// Shared internal: apply points, trigger glow/popup, persist.
+  void _addPoints(String username, int finalPoints, bool isFollower) {
     final idx = partySlots.indexWhere((p) => p?.username == username);
     if (idx == -1 || partySlots[idx] == null) {
       print('[lobby] point_add: $username not found in slots');
       return;
     }
 
-    final int finalPoints = isFollower ? pointsAdded * 2 : pointsAdded;
+    // Track follower status on the player record
+    if (isFollower) partySlots[idx]!.isFollower = true;
 
     partySlots[idx]!.points += finalPoints;
     print('[lobby] +$finalPoints (follower: $isFollower) → $username (slot ${idx + 1}, now ${partySlots[idx]!.points} pts)');

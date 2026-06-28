@@ -42,14 +42,14 @@ class GiftEvent extends RelayEvent {
   final String username;
   final String giftName;
   final int count;
-  final int lobbyPoints;
+  final int coinCost;
   final bool isFollower;
   const GiftEvent(
     this.userId,
     this.username,
     this.giftName,
     this.count,
-    this.lobbyPoints,
+    this.coinCost,
     [this.isFollower = false]
   );
 }
@@ -199,7 +199,7 @@ class RelayClient {
             data['username'] as String? ?? '',
             data['giftName'] as String? ?? '',
             (data['count'] as num?)?.toInt() ?? 1,
-            (data['lobbyPoints'] as num?)?.toInt() ?? 0,
+            (data['coinCost'] as num?)?.toInt() ?? 1,
             data['isFollower'] as bool? ?? false,
           ),
         'comment' => CommentEvent(
