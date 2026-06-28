@@ -61,7 +61,7 @@ abstract class AngelSoldier extends SpriteComponent {
   int get maxHp => 3;
 
   AngelSoldier({required this.userId, required this.username})
-      : super(size: Vector2(64, 64));
+      : super(size: Vector2(128, 128));
 
   Future<void> loadVisuals() async {
     sprite = await Sprite.load('default_soldier.png');
@@ -162,7 +162,7 @@ abstract class AngelSoldier extends SpriteComponent {
         if (other == this || other.state != SoldierState.alive) continue;
 
         final dist = position.distanceTo(other.position);
-        const personalSpaceRadius = 36.0;
+        const personalSpaceRadius = 72.0;
 
         if (dist < personalSpaceRadius && dist > 0) {
           final pushDirection = (position - other.position)..normalize();
@@ -214,7 +214,7 @@ abstract class AngelSoldier extends SpriteComponent {
           moveTarget = (closestThreat as PositionComponent).position.clone();
         } else {
           // STATE A: Quiet — hold guard post in front of Bob
-          final guardOffset = Vector2(0, -35);
+          final guardOffset = Vector2(0, -70);
           final guardPosition = coverTarget!.position + guardOffset;
           // Only move if drifted too far from post (avoids jitter)
           if (position.distanceTo(guardPosition) > 10) {
@@ -301,26 +301,26 @@ abstract class AngelSoldier extends SpriteComponent {
 
     // Alive — Name tag enclosed inside high-contrast capsule backgrounds
     final cx = size.x / 2;
-    final ns = TextStyle(color: const Color(0xFFFFFFFF), fontSize: 9, fontWeight: FontWeight.bold);
+    final ns = TextStyle(color: const Color(0xFFFFFFFF), fontSize: 12, fontWeight: FontWeight.bold);
     final tp = TextPainter(
       text: TextSpan(text: username.length > 7 ? '${username.substring(0, 7)}..' : username, style: ns),
       textDirection: TextDirection.ltr)..layout();
 
     final badgeX = cx - tp.width / 2;
-    const badgeY = -28.0;
+    const badgeY = -56.0;
 
-    final pillRect = Rect.fromLTWH(badgeX - 4, badgeY - 1, tp.width + 8, tp.height + 2);
+    final pillRect = Rect.fromLTWH(badgeX - 6, badgeY - 1, tp.width + 12, tp.height + 3);
     canvas.drawRRect(RRect.fromRectAndRadius(pillRect, const Radius.circular(4)), Paint()..color = const Color(0x99000000));
     tp.paint(canvas, Offset(badgeX, badgeY));
 
     // HP Bar safely padded downward to prevent crowding bounds
-    canvas.drawRect(Rect.fromLTWH(cx - 12, -11, 24, 4), Paint()..color = const Color(0x66000000));
+    canvas.drawRect(Rect.fromLTWH(cx - 24, -22, 48, 5), Paint()..color = const Color(0x66000000));
     if (hp > 0) {
       final hpRatio = hp / maxHp;
       final hpColor = hpRatio > 0.5 ? const Color(0xFF44AA44)
           : hpRatio > 0.25 ? const Color(0xFFCCAA22)
           : const Color(0xFFCC2222);
-      canvas.drawRect(Rect.fromLTWH(cx - 12, -11, 24 * hpRatio, 4), Paint()..color = hpColor);
+      canvas.drawRect(Rect.fromLTWH(cx - 24, -22, 48 * hpRatio, 5), Paint()..color = hpColor);
     }
 
     if (isReviving) renderMagicCircle(canvas);
@@ -336,7 +336,7 @@ abstract class AngelSoldier extends SpriteComponent {
     canvas.translate(cx, size.y - 4);
     canvas.rotate(rotation);
     for (int i = 0; i < 3; i++) {
-      final r = 20.0 + i * 7.0 + sin(time * 2.0 + i) * 3.0;
+      final r = 36.0 + i * 14.0 + sin(time * 2.0 + i) * 6.0;
       canvas.drawCircle(Offset.zero, r,
         Paint()..color = Color.fromRGBO(255, 200, 50, (pulse * 0.4 - i * 0.08).clamp(0.05, 0.5))
           ..style = PaintingStyle.stroke..strokeWidth = 2.0 - i * 0.4);
@@ -355,7 +355,7 @@ abstract class AngelSoldier extends SpriteComponent {
 
   void renderReviveProgress(Canvas canvas, double progress) {
     final cx = size.x / 2;
-    final barW = 30.0, barH = 4.0, barY = -8.0;
+    final barW = 60.0, barH = 6.0, barY = -16.0;
     canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(cx - barW/2, barY, barW, barH), const Radius.circular(2)),
       Paint()..color = const Color(0x66000000));
     final fill = barW * progress.clamp(0.0, 1.0);
@@ -368,15 +368,15 @@ abstract class AngelSoldier extends SpriteComponent {
   void renderReviveBeam(Canvas canvas) {
     final cx = size.x / 2;
     final bp = sin(time * 20.0) * 0.2 + 0.8;
-    final bw = (sin(time * 20.0) * 6.0 + 24.0) * bp;
-    canvas.drawRect(Rect.fromLTWH(cx - bw/2, -80, bw, size.y + 60),
+    final bw = (sin(time * 20.0) * 12.0 + 48.0) * bp;
+    canvas.drawRect(Rect.fromLTWH(cx - bw/2, -120, bw, size.y + 60),
       Paint()..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
         colors: const [Color(0x00FFDD44), Color(0x88FFEE88), Color(0xCCFFFFAA), Color(0x88FFEE88), Color(0x00FFDD44)])
-          .createShader(Rect.fromLTWH(cx - bw/2, -80, bw, size.y + 60)));
-    canvas.drawRect(Rect.fromLTWH(cx - bw, -80, bw * 2, size.y + 60),
+          .createShader(Rect.fromLTWH(cx - bw/2, -120, bw, size.y + 60)));
+    canvas.drawRect(Rect.fromLTWH(cx - bw, -120, bw * 2, size.y + 60),
       Paint()..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
         colors: const [Color(0x00000000), Color(0x44FFDD44), Color(0x00000000)])
-          .createShader(Rect.fromLTWH(cx - bw, -80, bw * 2, size.y + 60)));
+          .createShader(Rect.fromLTWH(cx - bw, -120, bw * 2, size.y + 60)));
   }
 
   void renderGhostLabel(Canvas canvas) {

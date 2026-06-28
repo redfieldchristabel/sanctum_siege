@@ -32,7 +32,7 @@ class AngelKnight extends AngelSoldier {
   AngelKnight({required super.userId, required super.username}) {
     hp = 8;
     moveSpeed = 40.0;
-    size = Vector2(92, 92);
+    size = Vector2(184, 184);
   }
 
   @override
@@ -42,7 +42,7 @@ class AngelKnight extends AngelSoldier {
   int get maxHp => 8;
 
   @override
-  double get meleeRange => 20.0;
+  double get meleeRange => 40.0;
 
   @override
   int get meleeDamage => 2;

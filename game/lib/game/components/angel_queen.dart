@@ -9,7 +9,7 @@ class AngelQueen extends PositionComponent {
   final int maxHp = 80;
   SpriteAnimationComponent? _anim;
 
-  AngelQueen() : super(size: Vector2(128, 128));
+  AngelQueen() : super(size: Vector2(256, 256));
 
   @override
   Future<void> onLoad() async {
@@ -54,7 +54,7 @@ class AngelQueen extends PositionComponent {
     super.render(canvas);
 
     final cx = size.x / 2;
-    const barW = 44.0;
+    const barW = 88.0;
     final barY = size.y - 14.0;
     canvas.drawRect(Rect.fromLTWH(cx - barW / 2, barY, barW, 4),
         Paint()..color = const Color(0x88000000));

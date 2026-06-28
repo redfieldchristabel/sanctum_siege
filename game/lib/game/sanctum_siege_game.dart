@@ -350,7 +350,7 @@ class SanctumSiegeGame extends FlameGame {
 
         // Check if in revive range (close enough for current class)
         final dist = reviver.position.distanceTo(ghost.position);
-        slot.isInRange = dist <= 25; // archer range; future: class-based
+        slot.isInRange = dist <= 50; // archer range; future: class-based
       }
 
       // If no revivers left alive, cancel the session
@@ -520,7 +520,7 @@ class SanctumSiegeGame extends FlameGame {
           world.add(
             Projectile.angel(
               startX: soldier.position.x,
-              startY: soldier.position.y - 20,
+              startY: soldier.position.y - 40,
               targetX: nearest.x,
               targetY: nearest.y,
             ),
@@ -897,7 +897,7 @@ class SanctumSiegeGame extends FlameGame {
         world.add(
           Projectile.angel(
             startX: sp.x as double,
-            startY: (sp.y as double) - 20,
+            startY: (sp.y as double) - 40,
             targetX: tp.x as double,
             targetY: tp.y as double,
           ),
@@ -962,7 +962,7 @@ class SanctumSiegeGame extends FlameGame {
         // Devil projectiles hit angels + queen
         for (final a in angels) {
           if (!a.isMounted) continue;
-          if (p.position.distanceTo(a.position) < 24) {
+          if (p.position.distanceTo(a.position) < 48) {
             p.removeFromParent();
             a.takeDamage(1);
             break;
@@ -971,7 +971,7 @@ class SanctumSiegeGame extends FlameGame {
         if (!p.isMounted) continue;
 
         if (queen != null && queen.isMounted) {
-          if (p.position.distanceTo(queen.position) < 32) {
+          if (p.position.distanceTo(queen.position) < 64) {
             p.removeFromParent();
             queen.takeDamage(1);
           }
