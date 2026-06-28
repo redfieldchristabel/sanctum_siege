@@ -90,7 +90,7 @@ abstract class AngelSoldier extends SpriteComponent {
 
   void revive({bool fullHp = false}) {
     state = SoldierState.alive;
-    hp = fullHp ? 5 : 3;
+    hp = fullHp ? (maxHp + 2) : maxHp;
     moveTarget = null;
     _reviveTarget = null;
     isReviving = false;
@@ -171,11 +171,13 @@ abstract class AngelSoldier extends SpriteComponent {
     }
   }
 
-  // ── Render — sprite is drawn by SpriteComponent.render() ──
-  // Overlays (name, HP, magic circle, ghost name) go in afterChildrenRendered.
+  // ── Render — sprite is drawn by super.render(canvas), then overlays on top.
 
   @override
-  void afterChildrenRendered(Canvas canvas) {
+  void render(Canvas canvas) {
+    // Let Flame draw the base sprite texture first
+    super.render(canvas);
+
     if (state == SoldierState.dead) return;
 
     if (state == SoldierState.ghost) {
