@@ -41,6 +41,9 @@ abstract class AngelSoldier extends SpriteComponent {
   AngelSoldier? coverTarget;
   bool get isCovering => coverTarget != null;
 
+  // ── TikTok Like speed boost ──
+  double speedBoostTimer = 0;
+
   // ── Sprites ──
   Sprite? _ghostSprite;
   Sprite? _defaultSprite;
@@ -103,6 +106,7 @@ abstract class AngelSoldier extends SpriteComponent {
     isBeingRevived = false;
     reviveBeamTimer = 0;
     reviveProgress = 0;
+    speedBoostTimer = 0;
     coverTarget = null;
     sprite = _defaultSprite;
     paint.color = const Color(0xFFFFFFFF);
@@ -119,6 +123,12 @@ abstract class AngelSoldier extends SpriteComponent {
       return true;
     }
     return false;
+  }
+
+  /// Apply a temporary speed boost from TikTok likes.
+  /// Duration is clamped to a max of 3.0 seconds.
+  void applySpeedBoost(double duration) {
+    speedBoostTimer = (speedBoostTimer + duration).clamp(0, 3.0);
   }
 
   // ── Update ──
@@ -166,7 +176,13 @@ abstract class AngelSoldier extends SpriteComponent {
       }
     }
 
-    // 3. THE ACTIVE INTERCEPTOR PROTECTION MATRIX
+    // 3a. SPEED BOOST DECAY: decay timer each frame, auto-reverts
+    if (speedBoostTimer > 0) {
+      speedBoostTimer = (speedBoostTimer - dt).clamp(0.0, 3.0);
+    }
+    final speedMul = speedBoostTimer > 0 ? 1.5 : 1.0;
+
+    // 3b. THE ACTIVE INTERCEPTOR PROTECTION MATRIX
     if (coverTarget != null) {
       if (!coverTarget!.isMounted || !coverTarget!.isAlive) {
         coverTarget = null; // Release bodyguard duties if target vanishes
@@ -204,8 +220,8 @@ abstract class AngelSoldier extends SpriteComponent {
           final dy = moveTarget!.y - position.y;
           final dist = sqrt(dx * dx + dy * dy);
           if (dist > 5) {
-            position.x += (dx / dist) * moveSpeed * dt;
-            position.y += (dy / dist) * moveSpeed * dt;
+            position.x += (dx / dist) * moveSpeed * speedMul * dt;
+            position.y += (dy / dist) * moveSpeed * speedMul * dt;
           }
         }
         return; // Halt base up-marching logic
@@ -219,8 +235,8 @@ abstract class AngelSoldier extends SpriteComponent {
         final dy = _reviveTarget!.y - position.y;
         final dist = sqrt(dx * dx + dy * dy);
         if (dist > 20) {
-          position.x += (dx / dist) * moveSpeed * dt;
-          position.y += (dy / dist) * moveSpeed * dt;
+          position.x += (dx / dist) * moveSpeed * speedMul * dt;
+          position.y += (dy / dist) * moveSpeed * speedMul * dt;
           moveTarget = _reviveTarget;
         } else {
           _hasArrived = true;
@@ -237,11 +253,11 @@ abstract class AngelSoldier extends SpriteComponent {
       final dy = moveTarget!.y - position.y;
       final dist = sqrt(dx * dx + dy * dy);
       if (dist > 5) {
-        position.x += (dx / dist) * moveSpeed * dt;
-        position.y += (dy / dist) * moveSpeed * dt;
+        position.x += (dx / dist) * moveSpeed * speedMul * dt;
+        position.y += (dy / dist) * moveSpeed * speedMul * dt;
       }
     } else {
-      position.y -= 25 * dt;
+      position.y -= 25 * speedMul * dt;
     }
 
     if (position.y < -50 || position.x < -50 || position.x > 770) {

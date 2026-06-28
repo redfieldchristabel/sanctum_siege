@@ -412,6 +412,58 @@ class SanctumSiegeGame extends FlameGame {
     }
   }
 
+  /// Route likes intelligently: alive soldiers get combat bursts or speed boost,
+  /// dead ghosts feed the revive meter.
+  void _handleLikeEvent(LikeEvent e) {
+    final soldier = _findAngelByUserId(e.userId, username: null);
+    if (soldier == null || !soldier.isAlive) {
+      // Dead / not found — route to revive system as before
+      _contributeLikesToRevive(e.userId, e.count);
+      return;
+    }
+
+    // Build target list (devils + king)
+    final devils = world.children
+        .whereType<DevilSoldier>()
+        .where((c) => c.isMounted && c.isActiveCombatant)
+        .toList();
+    final king = world.children
+        .whereType<DevilKing>()
+        .where((c) => c.isMounted)
+        .firstOrNull;
+    final targets = [...devils, if (king != null) king];
+
+    // Find nearest threat
+    final nearest = _findNearestPos(soldier.position, targets);
+
+    if (nearest != null) {
+      final attackRange = soldier.isMelee ? soldier.meleeRange : angelRange;
+      final dist = soldier.position.distanceTo(nearest);
+
+      if (dist <= attackRange) {
+        // CONDITION A: In combat — spawn extra projectiles (capped at 10)
+        final count = e.count.clamp(1, 10);
+        for (int i = 0; i < count; i++) {
+          world.add(
+            Projectile.angel(
+              startX: soldier.position.x,
+              startY: soldier.position.y - 20,
+              targetX: nearest.x,
+              targetY: nearest.y,
+            ),
+          );
+        }
+        print('[likes] ${soldier.username} fires $count bonus shots!');
+        return;
+      }
+    }
+
+    // CONDITION B: Out of combat — apply speed boost (0.1s per like, capped at 3s)
+    final duration = e.count * 0.1;
+    soldier.applySpeedBoost(duration);
+    print('[likes] ${soldier.username} speed boosted +${duration}s');
+  }
+
   /// Parse a chat comment for revive/cover/cancel commands.
   void _handleComment(CommentEvent e) {
     if (_phase != GamePhase.fighting) return;
@@ -922,7 +974,7 @@ class SanctumSiegeGame extends FlameGame {
 
       case LikeEvent e:
         if (_phase == GamePhase.fighting && !_leftUsers.contains(e.userId)) {
-          _contributeLikesToRevive(e.userId, e.count);
+          _handleLikeEvent(e);
         }
         break;
 
