@@ -49,6 +49,7 @@ abstract class AngelSoldier extends SpriteComponent {
   bool get isAlive => state == SoldierState.alive;
   bool get isActiveCombatant => state == SoldierState.alive && !isReviving;
   bool get hasArrivedAtGhost => isReviving && _hasArrived;
+  int get maxHp => 3;
 
   AngelSoldier({required this.userId, required this.username})
       : super(size: Vector2(64, 64));
@@ -193,7 +194,7 @@ abstract class AngelSoldier extends SpriteComponent {
 
     if (state == SoldierState.burning) return;
 
-    // Alive — name label
+    // Alive — name label above the character
     final cx = size.x / 2;
     final ns = TextStyle(
       color: const Color(0xFFFFFFFF), fontSize: 8, fontWeight: FontWeight.bold,
@@ -201,12 +202,16 @@ abstract class AngelSoldier extends SpriteComponent {
     final tp = TextPainter(
       text: TextSpan(text: username.length > 6 ? '${username.substring(0, 6)}..' : username, style: ns),
       textDirection: TextDirection.ltr)..layout();
-    tp.paint(canvas, Offset(cx - tp.width / 2, size.y - 80));
+    tp.paint(canvas, Offset(cx - tp.width / 2, -14));
 
-    // HP bar
-    if (hp < 3) {
-      canvas.drawRect(Rect.fromLTWH(cx - 8, size.y - 76, 16, 3), Paint()..color = const Color(0x66000000));
-      canvas.drawRect(Rect.fromLTWH(cx - 8, size.y - 76, 16 * (hp / 3), 3), Paint()..color = const Color(0xFF44AA44));
+    // HP bar (always visible, empty bar shows at full HP)
+    canvas.drawRect(Rect.fromLTWH(cx - 10, -8, 20, 3), Paint()..color = const Color(0x66000000));
+    if (hp > 0) {
+      final hpRatio = hp / maxHp;
+      final hpColor = hpRatio > 0.5 ? const Color(0xFF44AA44)
+          : hpRatio > 0.25 ? const Color(0xFFCCAA22)
+          : const Color(0xFFCC2222);
+      canvas.drawRect(Rect.fromLTWH(cx - 10, -8, 20 * hpRatio, 3), Paint()..color = hpColor);
     }
 
     if (isReviving) renderMagicCircle(canvas);
@@ -268,16 +273,16 @@ abstract class AngelSoldier extends SpriteComponent {
           .createShader(Rect.fromLTWH(cx - bw, -80, bw * 2, size.y + 60)));
   }
 
-  /// Ghost name label — drawn above the ghost soul sprite (which renders via
-  /// SpriteComponent's built-in sprite pass after swap in takeDamage()).
+  /// Ghost name label — drawn above the ghost soul sprite so players can
+  /// identify who to revive. Uses brighter blue-white for visibility.
   void renderGhostLabel(Canvas canvas) {
     final drift = sin(time * 1.2) * 2.0;
     canvas.save();
     canvas.translate(size.x / 2 + drift, 0);
-    final ns = TextStyle(color: const Color(0x88AACCFF), fontSize: 8, fontWeight: FontWeight.bold,
-      shadows: [const Shadow(color: Color(0x44000000), blurRadius: 2, offset: Offset(1, 1))]);
-    final tp = TextPainter(text: TextSpan(text: username.length > 6 ? '${username.substring(0, 6)}..' : username, style: ns), textDirection: TextDirection.ltr)..layout();
-    tp.paint(canvas, Offset(-tp.width / 2, -size.y - 8));
+    final ns = TextStyle(color: const Color(0xCCCCDDFF), fontSize: 9, fontWeight: FontWeight.bold,
+      shadows: [const Shadow(color: Color(0xFF000000), blurRadius: 3, offset: Offset(1, 1))]);
+    final tp = TextPainter(text: TextSpan(text: username, style: ns), textDirection: TextDirection.ltr)..layout();
+    tp.paint(canvas, Offset(-tp.width / 2, -size.y - 12));
     canvas.restore();
   }
 }
