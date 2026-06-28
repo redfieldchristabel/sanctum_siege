@@ -204,16 +204,16 @@ abstract class AngelSoldier extends SpriteComponent {
     final tp = TextPainter(
       text: TextSpan(text: username.length > 6 ? '${username.substring(0, 6)}..' : username, style: ns),
       textDirection: TextDirection.ltr)..layout();
-    tp.paint(canvas, Offset(cx - tp.width / 2, -14));
+    tp.paint(canvas, Offset(cx - tp.width / 2, -24));
 
     // HP bar (always visible, empty bar shows at full HP)
-    canvas.drawRect(Rect.fromLTWH(cx - 10, -8, 20, 3), Paint()..color = const Color(0x66000000));
+    canvas.drawRect(Rect.fromLTWH(cx - 10, -10, 20, 3), Paint()..color = const Color(0x66000000));
     if (hp > 0) {
       final hpRatio = hp / maxHp;
       final hpColor = hpRatio > 0.5 ? const Color(0xFF44AA44)
           : hpRatio > 0.25 ? const Color(0xFFCCAA22)
           : const Color(0xFFCC2222);
-      canvas.drawRect(Rect.fromLTWH(cx - 10, -8, 20 * hpRatio, 3), Paint()..color = hpColor);
+      canvas.drawRect(Rect.fromLTWH(cx - 10, -10, 20 * hpRatio, 3), Paint()..color = hpColor);
     }
 
     if (isReviving) renderMagicCircle(canvas);
@@ -275,8 +275,7 @@ abstract class AngelSoldier extends SpriteComponent {
           .createShader(Rect.fromLTWH(cx - bw, -80, bw * 2, size.y + 60)));
   }
 
-  /// Ghost name label — drawn above the ghost soul sprite so players can
-  /// identify who to revive. Uses brighter blue-white for visibility.
+  /// Ghost name label — drawn cleanly above the ghost soul sprite
   void renderGhostLabel(Canvas canvas) {
     final drift = sin(time * 1.2) * 2.0;
     canvas.save();
@@ -284,7 +283,8 @@ abstract class AngelSoldier extends SpriteComponent {
     final ns = TextStyle(color: const Color(0xCCCCDDFF), fontSize: 9, fontWeight: FontWeight.bold,
       shadows: [const Shadow(color: Color(0xFF000000), blurRadius: 3, offset: Offset(1, 1))]);
     final tp = TextPainter(text: TextSpan(text: username, style: ns), textDirection: TextDirection.ltr)..layout();
-    tp.paint(canvas, Offset(-tp.width / 2, -size.y - 12));
+    // Float right above the soul asset top boundary
+    tp.paint(canvas, Offset(-tp.width / 2, -16));
     canvas.restore();
   }
 }
