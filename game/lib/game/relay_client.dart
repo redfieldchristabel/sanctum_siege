@@ -28,7 +28,13 @@ class LikeEvent extends RelayEvent {
   final String userId;
   final String username;
   final int count;
-  const LikeEvent(this.userId, this.username, this.count);
+  final bool isFollower;
+  const LikeEvent(
+    this.userId,
+    this.username,
+    this.count,
+    [this.isFollower = false]
+  );
 }
 
 class GiftEvent extends RelayEvent {
@@ -37,7 +43,15 @@ class GiftEvent extends RelayEvent {
   final String giftName;
   final int count;
   final int lobbyPoints;
-  const GiftEvent(this.userId, this.username, this.giftName, this.count, this.lobbyPoints);
+  final bool isFollower;
+  const GiftEvent(
+    this.userId,
+    this.username,
+    this.giftName,
+    this.count,
+    this.lobbyPoints,
+    [this.isFollower = false]
+  );
 }
 
 class CommentEvent extends RelayEvent {
@@ -178,6 +192,7 @@ class RelayClient {
             data['userId'] as String? ?? '',
             data['username'] as String? ?? '',
             (data['count'] as num?)?.toInt() ?? 1,
+            data['isFollower'] as bool? ?? false,
           ),
         'gift' => GiftEvent(
             data['userId'] as String? ?? '',
@@ -185,6 +200,7 @@ class RelayClient {
             data['giftName'] as String? ?? '',
             (data['count'] as num?)?.toInt() ?? 1,
             (data['lobbyPoints'] as num?)?.toInt() ?? 0,
+            data['isFollower'] as bool? ?? false,
           ),
         'comment' => CommentEvent(
             data['userId'] as String? ?? '',

@@ -117,7 +117,7 @@ const commands: CommandEntry[] = [
     build: ([, count], u) => {
       const c = count ? parseInt(count) : 1;
       console.log(`  [${u.username}] sends ${c} likes`);
-      return { event: "like", data: { userId: u.userId, username: u.username, count: c } };
+      return { event: "like", data: { userId: u.userId, username: u.username, count: c, isFollower: true } };
     },
   },
   // ── TikTok event: gift ──────────────────────────
@@ -135,6 +135,7 @@ const commands: CommandEntry[] = [
           giftName: giftName.trim(),
           count: c,
           lobbyPoints: calcGiftPoints(giftName, c),
+          isFollower: true,
         },
       };
     },

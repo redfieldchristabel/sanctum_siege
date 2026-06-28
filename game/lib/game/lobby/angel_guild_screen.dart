@@ -72,9 +72,9 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
           isGifter: e.isGifter,
         ));
       case LikeEvent e:
-        ctrl.triggerPointGainAnimation(e.username, e.count);
+        ctrl.triggerPointGainAnimation(e.username, e.count, isFollower: e.isFollower);
       case GiftEvent e:
-        ctrl.triggerPointGainAnimation(e.username, e.lobbyPoints);
+        ctrl.triggerPointGainAnimation(e.username, e.lobbyPoints, isFollower: e.isFollower);
         ctrl.markAsGifter(e.username);
       case LobbyUpdateEvent _:
         _fillMockParty();

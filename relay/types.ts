@@ -33,6 +33,7 @@ export interface LeaveData {
 export interface LikeData {
   userId: string;
   count: number;
+  isFollower?: boolean;
 }
 
 export interface GiftData {
@@ -40,6 +41,7 @@ export interface GiftData {
   username: string;
   giftName: string;
   count: number;
+  isFollower?: boolean;
 }
 
 export interface CommentData {

@@ -202,21 +202,24 @@ class GuildLobbyController extends ChangeNotifier {
   }
 
   /// Add points to a specific player and trigger visual feedback.
-  void triggerPointGainAnimation(String username, int pointsAdded) {
+  /// If [isFollower] is true, points are multiplied by 2 (follower bonus).
+  void triggerPointGainAnimation(String username, int pointsAdded, {bool isFollower = false}) {
     final idx = partySlots.indexWhere((p) => p?.username == username);
     if (idx == -1 || partySlots[idx] == null) {
       print('[lobby] point_add: $username not found in slots');
       return;
     }
 
-    partySlots[idx]!.points += pointsAdded;
-    print('[lobby] +$pointsAdded → $username (slot ${idx + 1}, now ${partySlots[idx]!.points} pts)');
+    final int finalPoints = isFollower ? pointsAdded * 2 : pointsAdded;
+
+    partySlots[idx]!.points += finalPoints;
+    print('[lobby] +$finalPoints (follower: $isFollower) → $username (slot ${idx + 1}, now ${partySlots[idx]!.points} pts)');
 
     // Trigger glow
     glowingCardIndices.add(idx);
     activePopups.add(PointPopup(
       username: username,
-      pointsAdded: pointsAdded,
+      pointsAdded: finalPoints,
     ));
 
     notifyListeners();
