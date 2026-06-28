@@ -29,6 +29,7 @@ class DevilSoldier extends PositionComponent {
   Future<void> onLoad() async {
     await super.onLoad();
     anchor = Anchor.bottomCenter;
+    scale = Vector2.all(2.0);
   }
 
   @override

@@ -906,7 +906,7 @@ class SanctumSiegeGame extends FlameGame {
         world.add(
           Projectile.devil(
             startX: sp.x as double,
-            startY: (sp.y as double) - 20,
+            startY: (sp.y as double) - 40,
             targetX: tp.x as double,
             targetY: tp.y as double,
           ),
@@ -944,7 +944,7 @@ class SanctumSiegeGame extends FlameGame {
         // Angel projectiles hit devils + king
         for (final d in devils) {
           if (!d.isMounted) continue;
-          if (p.position.distanceTo(d.position) < 24) {
+          if (p.position.distanceTo(d.position) < 48) {
             p.removeFromParent();
             d.takeDamage(1);
             break;
@@ -953,7 +953,7 @@ class SanctumSiegeGame extends FlameGame {
         if (!p.isMounted) continue;
 
         if (king != null && king.isMounted) {
-          if (p.position.distanceTo(king.position) < 32) {
+          if (p.position.distanceTo(king.position) < 64) {
             p.removeFromParent();
             king.takeDamage(1);
           }
