@@ -205,6 +205,22 @@ class SanctumSiegeGame extends FlameGame {
   static const double kingRange = 400.0;
   static const double kingInterval = 0.6;
 
+  /// Calculates the true torso/center position of a component for shooting and hit detection.
+  Vector2 _getComponentCenter(Component c) {
+    if (c is PositionComponent) {
+      if (c is AngelQueen) {
+        // Bottom-anchored 256x256 sprite box. Torso is halfway up.
+        return Vector2(c.position.x, c.position.y - 128);
+      } else if (c is DevilKing) {
+        // Bottom-anchored 56x68, scaled up 2.0x (effective height = 136px).
+        return Vector2(c.position.x, c.position.y - 68);
+      }
+      // Default center-anchored units (AngelSoldier) or topLeft (generic)
+      return c.position.clone();
+    }
+    return Vector2.zero();
+  }
+
   // ─── ON LOAD ──────────────────────────────────────────────
 
   @override
@@ -216,7 +232,7 @@ class SanctumSiegeGame extends FlameGame {
     world.add(ArenaBackground());
 
     // Queen (passive, always visible)
-    world.add(AngelQueen()..position = Vector2(360, 1255));
+    world.add(AngelQueen()..position = Vector2(360, 1280));
     // King (visible but doesn't fight until fighting phase)
     // Spawn at y=150 so his full 136px height (68*2.0) fits with top padding
     world.add(DevilKing()..position = Vector2(360, 150));
@@ -892,24 +908,27 @@ class SanctumSiegeGame extends FlameGame {
 
     if (closest != null && _shootTimers[shooter]! >= interval) {
       _shootTimers[shooter] = 0;
-      final sp = (shooter as dynamic).position;
-      final tp = (closest as dynamic).position;
+
+      // Aim using calculated centers rather than foot baselines
+      final sp = _getComponentCenter(shooter);
+      final tp = _getComponentCenter(closest);
+
       if (isAngel) {
         world.add(
           Projectile.angel(
-            startX: sp.x as double,
-            startY: (sp.y as double) - 40,
-            targetX: tp.x as double,
-            targetY: tp.y as double,
+            startX: sp.x,
+            startY: sp.y,
+            targetX: tp.x,
+            targetY: tp.y,
           ),
         );
       } else {
         world.add(
           Projectile.devil(
-            startX: sp.x as double,
-            startY: (sp.y as double) - 40,
-            targetX: tp.x as double,
-            targetY: tp.y as double,
+            startX: sp.x,
+            startY: sp.y,
+            targetX: tp.x,
+            targetY: tp.y,
           ),
         );
       }
@@ -942,10 +961,10 @@ class SanctumSiegeGame extends FlameGame {
       if (!p.isMounted) continue;
 
       if (p.isAngel) {
-        // Angel projectiles hit devils + king
         for (final d in devils) {
           if (!d.isMounted) continue;
-          if (p.position.distanceTo(d.position) < 48) {
+          final dCenter = _getComponentCenter(d);
+          if (p.position.distanceTo(dCenter) < 48) {
             p.removeFromParent();
             d.takeDamage(1);
             break;
@@ -954,16 +973,17 @@ class SanctumSiegeGame extends FlameGame {
         if (!p.isMounted) continue;
 
         if (king != null && king.isMounted) {
-          if (p.position.distanceTo(king.position) < 64) {
+          final kingCenter = _getComponentCenter(king);
+          if (p.position.distanceTo(kingCenter) < 64) {
             p.removeFromParent();
             king.takeDamage(1);
           }
         }
       } else {
-        // Devil projectiles hit angels + queen
         for (final a in angels) {
           if (!a.isMounted) continue;
-          if (p.position.distanceTo(a.position) < 48) {
+          final aCenter = _getComponentCenter(a);
+          if (p.position.distanceTo(aCenter) < 48) {
             p.removeFromParent();
             a.takeDamage(1);
             break;
@@ -972,7 +992,8 @@ class SanctumSiegeGame extends FlameGame {
         if (!p.isMounted) continue;
 
         if (queen != null && queen.isMounted) {
-          if (p.position.distanceTo(queen.position) < 64) {
+          final queenCenter = _getComponentCenter(queen);
+          if (p.position.distanceTo(queenCenter) < 64) {
             p.removeFromParent();
             queen.takeDamage(1);
           }

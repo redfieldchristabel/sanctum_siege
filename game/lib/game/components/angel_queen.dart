@@ -67,5 +67,29 @@ class AngelQueen extends PositionComponent {
           ..color = const Color(0xFF000000)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1);
+
+    // 2. Royal Text Painter UI (Matches Devil King styling)
+    final nameStyle = TextStyle(
+      color: const Color(0xFFFFD700), // Elegant gold palette
+      fontSize: 12,
+      fontWeight: FontWeight.bold,
+      letterSpacing: 2.0,
+      shadows: [
+        const Shadow(
+          color: Color(0xFF000000),
+          blurRadius: 4,
+          offset: Offset(1.5, 1.5),
+        ),
+      ],
+    );
+
+    final tp = TextPainter(
+      text: TextSpan(text: "ANGEL QUEEN", style: nameStyle),
+      textDirection: TextDirection.ltr,
+    );
+    tp.layout();
+
+    // Paint it above her head frame boundaries cleanly centered
+    tp.paint(canvas, Offset(cx - tp.width / 2, -28));
   }
 }
