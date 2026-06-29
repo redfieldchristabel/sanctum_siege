@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flame/game.dart';
 import 'guild_lobby_controller.dart';
 import '../relay_client.dart';
@@ -283,8 +284,8 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                   ? 'CLASS ASSIGNMENT'
                   : 'ANGEL GUILD',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 20,
+              style: GoogleFonts.cinzel(
+                fontSize: 22,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 5,
                 color: Colors.white,
@@ -305,7 +306,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                 : 'PARTY SELECTION',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
               letterSpacing: 5,
               color: _darkBrown.withValues(alpha: 0.7),
@@ -324,7 +325,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                   Text(
                     'Like to climb',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 3,
                       color: _darkBrown.withValues(alpha: 0.5),
@@ -337,7 +338,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                   Text(
                     'Follow = 2x points',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 3,
                       color: _gold.withValues(alpha: 0.8),
@@ -383,7 +384,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
           Text(
             timeStr,
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: FontWeight.w600,
               letterSpacing: 2,
               color: _darkBrown,
@@ -393,7 +394,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
           Text(
             isClassPhase ? 'to pick class' : 'until muster',
             style: TextStyle(
-              fontSize: 9,
+              fontSize: 10,
               color: _mediumBrown.withValues(alpha: 0.6),
               fontStyle: FontStyle.italic,
             ),
@@ -459,7 +460,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
             Text(
               '$rank.',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: FontWeight.w300,
                 color: _mediumBrown.withValues(alpha: 0.4),
               ),
@@ -468,7 +469,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
             Text(
               'Awaiting Hero...',
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 11,
                 fontStyle: FontStyle.italic,
                 color: _mediumBrown.withValues(alpha: 0.35),
               ),
@@ -534,7 +535,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                   : Text(
                       '$rank',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: _darkBrown.withValues(alpha: 0.6),
                       ),
@@ -564,7 +565,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                           ? player.username[0].toUpperCase()
                           : '?',
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),
@@ -589,7 +590,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                         child: Text(
                           '2x',
                           style: TextStyle(
-                            fontSize: 6,
+                            fontSize: 7,
                             fontWeight: FontWeight.w900,
                             color: Color(0xFF2C1A04),
                             height: 1,
@@ -618,7 +619,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 15,
                               fontWeight: FontWeight.w700,
                               color: _darkBrown,
                               height: 1.2,
@@ -660,7 +661,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                         child: Text(
                           '${player.points}',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 13,
                             fontWeight: FontWeight.w700,
                             color: _mediumBrown,
                           ),
@@ -718,7 +719,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
         Text(
           label,
           style: TextStyle(
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: FontWeight.w700,
             color: _darkBrown,
           ),
@@ -759,7 +760,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                 child: Text(
                   '+${popup.pointsAdded}',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: FontWeight.w800,
                     color: _gold,
                     shadows: [
@@ -799,7 +800,7 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                 Text(
                   'TO THE BATTLEFIELD!',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 4,
                     color: _gold.withValues(alpha: _glowAnim.value),

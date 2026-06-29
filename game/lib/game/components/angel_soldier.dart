@@ -279,11 +279,17 @@ abstract class AngelSoldier extends SpriteComponent {
 
   @override
   void render(Canvas canvas) {
-    super.render(canvas);
-
     if (state == SoldierState.dead) return;
 
     if (state == SoldierState.ghost) {
+      // Normalize ghost sprite to uniform 128x128 regardless of component size
+      // so Knight (184x184) and Sunfletcher (128x128) render identically
+      canvas.save();
+      final scaleX = 128.0 / size.x;
+      final scaleY = 128.0 / size.y;
+      canvas.scale(scaleX, scaleY);
+      super.render(canvas);
+
       if (reviveBeamTimer > 0) {
         renderReviveBeam(canvas);
         renderMagicCircle(canvas);
@@ -294,8 +300,11 @@ abstract class AngelSoldier extends SpriteComponent {
       } else {
         renderGhostLabel(canvas);
       }
+      canvas.restore();
       return;
     }
+
+    super.render(canvas);
 
     if (state == SoldierState.burning) return;
 

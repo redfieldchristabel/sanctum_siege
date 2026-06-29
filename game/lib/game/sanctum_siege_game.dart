@@ -218,7 +218,8 @@ class SanctumSiegeGame extends FlameGame {
     // Queen (passive, always visible)
     world.add(AngelQueen()..position = Vector2(360, 1255));
     // King (visible but doesn't fight until fighting phase)
-    world.add(DevilKing()..position = Vector2(360, 70));
+    // Spawn at y=150 so his full 136px height (68*2.0) fits with top padding
+    world.add(DevilKing()..position = Vector2(360, 150));
     // (rampart guards removed — only spawn via wave)
 
     // Spawn angels from lobby-selected players

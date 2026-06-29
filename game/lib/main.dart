@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
 import 'game/lobby/angel_guild_screen.dart';
 import 'game/lobby/guild_lobby_controller.dart';
@@ -47,6 +48,7 @@ class SanctumSiegeApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(useMaterial3: true).copyWith(
         scaffoldBackgroundColor: const Color(0xFF0B0A1A),
+        textTheme: GoogleFonts.vt323TextTheme(ThemeData.dark().textTheme),
       ),
       home: AngelGuildScreen(controller: controller),
     );
