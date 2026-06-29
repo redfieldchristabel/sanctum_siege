@@ -39,7 +39,7 @@ class AngelKnight extends AngelSoldier {
   bool get isMelee => true;
 
   @override
-  int get maxHp => 8;
+  int get maxHp => 10;
 
   @override
   double get meleeRange => 40.0;
