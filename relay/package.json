@@ -9,6 +9,7 @@
     "dev": "npx concurrently -n relay,cli 'npm run relay' 'npm run cli'"
   },
   "dependencies": {
+    "tiktok-live-connector": "^2.4.0",
     "ws": "^8.18.2"
   },
   "devDependencies": {
