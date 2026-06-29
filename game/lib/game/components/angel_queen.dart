@@ -55,14 +55,14 @@ class AngelQueen extends PositionComponent {
 
     final cx = size.x / 2;
     const barW = 88.0;
-    final barY = size.y - 14.0;
-    canvas.drawRect(Rect.fromLTWH(cx - barW / 2, barY, barW, 4),
+    final barY =  50.0;
+    canvas.drawRect(Rect.fromLTWH(cx - barW / 2, barY, barW, 8),
         Paint()..color = const Color(0x88000000));
     canvas.drawRect(
-      Rect.fromLTWH(cx - barW / 2, barY, barW * (hp / maxHp), 4),
+      Rect.fromLTWH(cx - barW / 2, barY, barW * (hp / maxHp), 8),
       Paint()..color = const Color(0xFF44AA44),
     );
-    canvas.drawRect(Rect.fromLTWH(cx - barW / 2, barY, barW, 4),
+    canvas.drawRect(Rect.fromLTWH(cx - barW / 2, barY, barW, 8),
         Paint()
           ..color = const Color(0xFF000000)
           ..style = PaintingStyle.stroke
@@ -90,6 +90,6 @@ class AngelQueen extends PositionComponent {
     tp.layout();
 
     // Paint it above her head frame boundaries cleanly centered
-    tp.paint(canvas, Offset(cx - tp.width / 2, -28));
+    tp.paint(canvas, Offset(cx - tp.width / 2, 30));
   }
 }
