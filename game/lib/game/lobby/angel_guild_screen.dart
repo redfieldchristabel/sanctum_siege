@@ -220,7 +220,12 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
                   children: [
                     _buildHeader(),
                     _buildTimerBar(),
-                    Expanded(child: _buildCardGrid()),
+                    // CONDITIONAL PHASE ROUTER:
+                    Expanded(
+                      child: ctrl.phase == LobbyPhase.tutorial
+                          ? _buildTutorialHandbookView()
+                          : _buildCardGrid(),
+                    ),
                     _buildFooter(),
                   ],
                 ),
@@ -368,8 +373,13 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
   // ══════════════════════════════════════════════════
 
   Widget _buildTimerBar() {
-    final isClassPhase = ctrl.phase == LobbyPhase.classAssignment;
-    final seconds = isClassPhase ? ctrl.classTimerSeconds : ctrl.countdownSeconds;
+    final bool isTutorial = ctrl.phase == LobbyPhase.tutorial;
+    final bool isClassPhase = ctrl.phase == LobbyPhase.classAssignment;
+
+    final int seconds = isTutorial
+        ? ctrl.tutorialTimerSeconds
+        : (isClassPhase ? ctrl.classTimerSeconds : ctrl.countdownSeconds);
+
     final minutes = seconds ~/ 60;
     final remaining = seconds % 60;
     final timeStr = '${minutes.toString().padLeft(2, '0')}:${remaining.toString().padLeft(2, '0')}';
@@ -379,7 +389,11 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(isClassPhase ? Icons.shield : Icons.schedule, size: 13, color: _mediumBrown),
+          Icon(
+            isTutorial ? Icons.help_outline : (isClassPhase ? Icons.shield : Icons.schedule),
+            size: 13,
+            color: _mediumBrown,
+          ),
           const SizedBox(width: 6),
           Text(
             timeStr,
@@ -392,7 +406,9 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
           ),
           const SizedBox(width: 6),
           Text(
-            isClassPhase ? 'to pick class' : 'until muster',
+            isTutorial
+                ? 'until battle preview starts'
+                : (isClassPhase ? 'to pick class' : 'until muster'),
             style: TextStyle(
               fontSize: 10,
               color: _mediumBrown.withValues(alpha: 0.6),
@@ -817,6 +833,168 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
           ),
         );
       },
+    );
+  }
+
+  // ══════════════════════════════════════════════════
+  //  Tutorial Handbook
+  // ══════════════════════════════════════════════════
+
+  Widget _buildTutorialHandbookView() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── SECTION 1: MEET YOUR CLASSES ──
+          _buildTutorialHeader("⚔️ SOLDIER ARCHETYPES"),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _buildClassOnboardingCard(
+                  icon: Icons.shield,
+                  className: "ANGEL KNIGHT",
+                  details: "Melee Tank Class\n• Health: 8 HP Max\n• Range: 40px\n• Action: Devastating direct close-quarters strikes.",
+                  color: const Color(0xFF4A6FA5),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildClassOnboardingCard(
+                  icon: Icons.gps_fixed,
+                  className: "SUNFLETCHER",
+                  details: "Ranged Archer Class\n• Health: 3 HP Max\n• Range: 280px\n• Action: Continuous long-distance cover-fire.",
+                  color: const Color(0xFFD4AF37),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // ── SECTION 2: LEADERBOARD & SELECTION ──
+          _buildTutorialHeader("🏆 LEADERBOARD QUALIFICATION"),
+          const SizedBox(height: 8),
+          _buildInstructionBullet(
+            title: "Climb with Stream Likes",
+            desc: "Interact and send likes during the ranking lobby phase to score points and push your name into the Elite 18 roster.",
+          ),
+          _buildInstructionBullet(
+            title: "Top 5 Role Command Locking",
+            desc: "If you secure a spot in the Top 5, use chat choices during the selection window. Type '!knight' or '!sunfletcher' (or '!archer') to immediately change your class assignment archetype.",
+          ),
+          const SizedBox(height: 20),
+
+          // ── SECTION 3: IN-GAME COMBAT SYSTEM ──
+          _buildTutorialHeader("🔥 IN-GAME COMBAT INTERACTIONS"),
+          const SizedBox(height: 8),
+          _buildInstructionBullet(
+            title: "💖 Likes Interaction Mechanism",
+            desc: "• Out of Combat: Grants your unit a temporary +50% movement speed burst to reinforce frontline positions faster.\n• In Combat: Spawns an immediate multi-projectile or strike burst (up to 10 bonus rapid-attacks per action) directed at the nearest threat.",
+          ),
+          _buildInstructionBullet(
+            title: "💬 Chat Commenting Routes (3 Ways to Direct)",
+            desc: "1. Reply to live game status alerts.\n2. Target player comment text lines to follow up their action chain.\n3. Type a direct chat message containing the target username.",
+          ),
+          _buildInstructionBullet(
+            title: "📜 Live Battlefield Tactical Commands",
+            desc: "• 'revive @username' — Moves your unit into position to form a pooling magic resurrection circle over a fallen player's ghost.\n• 'cover @username' or 'guard @username' (Shortcuts: 'c' / 'g') — Forces interceptor bodyguard mode, continuously engaging threats entering that ally's danger path.\n• 'cancel' — Breaks active special assignments to clear your path back to main up-marching combat lines.",
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTutorialHeader(String text) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      decoration: BoxDecoration(
+        color: _mediumBrown.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        text,
+        style: GoogleFonts.cinzel(
+          fontSize: 14,
+          fontWeight: FontWeight.w900,
+          color: _darkBrown,
+          letterSpacing: 2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClassOnboardingCard({
+    required IconData icon,
+    required String className,
+    required String details,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: _mediumBrown.withValues(alpha: 0.3), width: 1),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 32, color: color),
+          const SizedBox(height: 6),
+          Text(
+            className,
+            style: GoogleFonts.cinzel(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: _darkBrown,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            details,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: _darkBrown.withValues(alpha: 0.8),
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInstructionBullet({required String title, required String desc}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10, left: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "• $title",
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: _darkBrown,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Padding(
+            padding: const EdgeInsets.only(left: 12),
+            child: Text(
+              desc,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: _darkBrown.withValues(alpha: 0.75),
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

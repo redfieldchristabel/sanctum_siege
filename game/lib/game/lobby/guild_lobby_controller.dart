@@ -6,7 +6,7 @@ import 'persistent_storage.dart';
 //  Phases
 // ══════════════════════════════════════════════════
 
-enum LobbyPhase { ranking, classAssignment, transitioning }
+enum LobbyPhase { tutorial, ranking, classAssignment, transitioning }
 
 // ══════════════════════════════════════════════════
 //  Data Models
@@ -53,7 +53,10 @@ class PointPopup {
 
 class GuildLobbyController extends ChangeNotifier {
   /// Current lobby phase.
-  LobbyPhase phase = LobbyPhase.ranking;
+  LobbyPhase phase = LobbyPhase.tutorial;
+
+  /// Onboarding tutorial timer seconds.
+  int tutorialTimerSeconds = 30;
 
   /// 18 party slots for display only (driven by master registry).
   final List<LobbyPlayer?> partySlots = List.filled(18, null);
@@ -91,7 +94,16 @@ class GuildLobbyController extends ChangeNotifier {
   }
 
   void _tick() {
-    if (phase == LobbyPhase.ranking) {
+    if (phase == LobbyPhase.tutorial) {
+      if (tutorialTimerSeconds > 0) {
+        tutorialTimerSeconds--;
+        notifyListeners();
+      }
+      if (tutorialTimerSeconds <= 0) {
+        phase = LobbyPhase.ranking;
+        notifyListeners();
+      }
+    } else if (phase == LobbyPhase.ranking) {
       if (countdownSeconds > 0) {
         countdownSeconds--;
         notifyListeners();
@@ -258,6 +270,8 @@ class GuildLobbyController extends ChangeNotifier {
     activePopups.clear();
     glowingCardIndices.clear();
     countdownSeconds = 180;
+    tutorialTimerSeconds = 30;
+    phase = LobbyPhase.tutorial;
     PersistentStorage.clearSavedLobby(); // wipe disk too
     notifyListeners();
   }
