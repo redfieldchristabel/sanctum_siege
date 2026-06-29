@@ -32,6 +32,7 @@ export interface LeaveData {
 
 export interface LikeData {
   userId: string;
+  username: string;
   count: number;
   isFollower?: boolean;
 }

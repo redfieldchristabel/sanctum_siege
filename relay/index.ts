@@ -1,70 +1,54 @@
-// ─── Sanctum Siege — Relay Server ────────────────────────────
-// Listens on ws://localhost:8080.
-// - Game clients connect and receive forwarded events.
-// - CLI/Dev clients connect and inject events with source="dev".
-
+// ─── Sanctum Siege — Core Orchestrator Relay ────────────────
 import { WebSocketServer, WebSocket } from "ws";
-import type { GameEvent, CliCommand, ServerMessage, EventSource } from "./types.js";
+import type { GameEvent, ServerMessage } from "./types.js";
+import { initTikTokPipeline } from "./src/tiktokPipeline.js";
+import { handleCliMessage } from "./src/cliPipeline.js";
 
 const PORT = 8080;
-
-/** Set of game (subscriber) connections. */
 const gameClients = new Set<WebSocket>();
-
 const wss = new WebSocketServer({ port: PORT });
+
+// ─── Start the Concurrent Event Pipelines ───
+// Kick off the automated TikTok scraper pipeline, linking it directly to the broadcast pipeline
+initTikTokPipeline(broadcast);
 
 wss.on("connection", (ws, req) => {
   const url = req.url ?? "/";
-  const isDev = url === "/dev";            // ws://localhost:8080/dev  — CLI
-  const isGame = url === "/game" || url === "/";  // ws://localhost:8080/game or / — game
+  const isDev = url === "/dev";                  // ws://localhost:8080/dev  — Moderator CLI
+  const isGame = url === "/game" || url === "/";  // ws://localhost:8080/game or / — Game Engine
 
   send(ws, { type: "welcome", payload: isDev ? "dev-cli" : "game" });
 
   if (isGame) {
     gameClients.add(ws);
-    console.log(`[relay] game client connected  (${gameClients.size} total)`);
+    console.log(`[relay] game engine instance connected (${gameClients.size} total)`);
   }
 
   if (isDev) {
-    console.log(`[relay] dev CLI connected`);
+    console.log(`[relay] moderator dev CLI connection established`);
   }
 
   ws.on("message", (raw) => {
-    let msg: CliCommand;
-    try {
-      msg = JSON.parse(raw.toString());
-    } catch {
-      send(ws, { type: "error", payload: "invalid JSON" });
-      return;
-    }
-
-    // Only dev clients can inject events
+    // Security check: Guard access so only local moderator CLI connections can inject over the path
     if (!isDev) {
-      send(ws, { type: "error", payload: "only dev clients can inject events" });
+      send(ws, { type: "error", payload: "access denied: only authorized dev clients inject events" });
       return;
     }
 
-    const gameEvent: GameEvent = {
-      event: msg.event as GameEvent["event"],
-      data: msg.data as GameEvent["data"],
-      source: "dev",
-    } as GameEvent;
-
-    broadcast(gameEvent);
-    send(ws, { type: "ack", payload: `${gameEvent.event} forwarded` });
-    console.log(`[relay] dev → ${gameEvent.event}`, JSON.stringify(msg.data));
+    // Forward the message to the CLI pipeline module for routing execution
+    handleCliMessage(ws, raw as Buffer, broadcast);
   });
 
   ws.on("close", () => {
     gameClients.delete(ws);
-    if (isGame) console.log(`[relay] game client disconnected (${gameClients.size} left)`);
-    if (isDev) console.log(`[relay] dev CLI disconnected`);
+    if (isGame) console.log(`[relay] game engine client dropped (${gameClients.size} remaining)`);
+    if (isDev) console.log(`[relay] moderator dev CLI link disconnected`);
   });
 
   ws.on("error", () => gameClients.delete(ws));
 });
 
-/** Broadcast an event to all connected game clients. */
+/** Broadcast any internal or external unified event to all open game sessions */
 function broadcast(event: GameEvent): void {
   const json = JSON.stringify(event);
   for (const client of gameClients) {
@@ -78,8 +62,8 @@ function send(ws: WebSocket, msg: ServerMessage): void {
   ws.send(JSON.stringify(msg));
 }
 
-console.log(`\n  ⚔️  Sanctum Siege — Relay Server`);
-console.log(`  ───────────────────────────────`);
-console.log(`  ws://localhost:${PORT}        → game clients`);
-console.log(`  ws://localhost:${PORT}/dev    → CLI / dev tools`);
+console.log(`\n  ⚔️  Sanctum Siege — Modular Event Router Active`);
+console.log(`  ───────────────────────────────────────────────`);
+console.log(`  ws://localhost:${PORT}        → target for game client stream listeners`);
+console.log(`  ws://localhost:${PORT}/dev    → target for interactive moderator tools`);
 console.log();
