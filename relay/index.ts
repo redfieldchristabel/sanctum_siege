@@ -41,9 +41,18 @@ wss.on("connection", (ws, req) => {
         send(ws, { type: "error", payload: "Pipeline Aborted: TikTok Live scraper is already active." });
         return;
       }
-      console.log(`[relay] CLI Activation Triggered: Booting up TikTok Live Stream Listeners...`);
-      initTikTokPipeline(broadcast);
+
+      console.log(`\n[relay] CLI Activation Triggered: Booting up TikTok Live Stream Listeners...`);
+
+      // Flip flag to true to secure the lock
       isTikTokPipelineRunning = true;
+
+      // Pass the state-reset callback so the process error or disconnect can auto-release
+      initTikTokPipeline(broadcast, () => {
+        isTikTokPipelineRunning = false;
+        console.log(`[relay] TikTok pipeline state cleared. Ready for next manual activation.`);
+      });
+
       send(ws, { type: "ack", payload: "TikTok live scraping pipeline successfully launched!" });
     });
   });

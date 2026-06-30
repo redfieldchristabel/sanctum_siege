@@ -38,8 +38,12 @@ interface TikTokGiftData {
 /**
  * Initializes the connection to a live TikTok room and forwards events via the broadcast handler.
  * @param broadcast Callback function to route payload frames down to the game client
+ * @param onClosed Optional callback triggered when the pipeline terminates or fails to link
  */
-export function initTikTokPipeline(broadcast: (event: GameEvent) => void): void {
+export function initTikTokPipeline(
+  broadcast: (event: GameEvent) => void,
+  onClosed?: () => void
+): void {
   const tiktokUsername = process.env.TIKTOK_USERNAME || "christabelredfiel";
 
   console.log(`[tiktok] Initializing connector for account: @${tiktokUsername}`);
@@ -56,6 +60,7 @@ export function initTikTokPipeline(broadcast: (event: GameEvent) => void): void 
     })
     .catch((err: Error) => {
       console.error('[tiktok] Connection initialization failed:', err.message || err);
+      if (onClosed) onClosed();
     });
 
   // ─── Stream Viewer Chat Comments ───
@@ -110,5 +115,6 @@ export function initTikTokPipeline(broadcast: (event: GameEvent) => void): void 
 
   conn.on('disconnected', (reason: string) => {
     console.warn(`[tiktok] Live pipeline dropped connection. Reason: ${reason}`);
+    if (onClosed) onClosed();
   });
 }
