@@ -83,7 +83,9 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
         ctrl.clearLobby();
       case StartMatchEvent _:
       case StartGameEvent _:
-        if (ctrl.phase == LobbyPhase.ranking) {
+        if (ctrl.phase == LobbyPhase.tutorial) {
+          ctrl.skipTutorialToRanking();
+        } else if (ctrl.phase == LobbyPhase.ranking) {
           ctrl.startClassAssignment();
           _startClassTimer();
         } else if (ctrl.phase == LobbyPhase.classAssignment) {
@@ -91,6 +93,13 @@ class _AngelGuildScreenState extends State<AngelGuildScreen>
           _classTimer?.cancel();
           ctrl.finalizeClasses();
           ctrl.startMatchTransition(() {});
+        }
+      case NextMatchEvent _:
+        if (ctrl.phase == LobbyPhase.tutorial) {
+          ctrl.skipTutorialToRanking();
+        } else if (ctrl.phase == LobbyPhase.ranking) {
+          ctrl.startClassAssignment();
+          _startClassTimer();
         }
       case CommentEvent e:
         _handleClassCommand(e);

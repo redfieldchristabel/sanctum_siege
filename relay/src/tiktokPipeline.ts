@@ -1,60 +1,26 @@
-import { TikTokLiveConnection } from 'tiktok-live-connector';
+import { TikTokLiveConnection, WebcastEvent } from 'tiktok-live-connector';
 import type { GameEvent } from '../types.js';
+import type { TikTokEventEmitter } from './tiktok/types.js';
+import { mapMemberEvent, mapChatEvent, mapLikeEvent, mapGiftEvent } from './tiktok/mappers.js';
+import { logConversion } from './tiktok/logger.js';
 
-// TikTokLiveConnection extends EventEmitter at runtime but the package types
-// don't expose .on(). Use a minimal shim for type safety.
-type TikTokEventEmitter = {
-  on(event: 'chat', fn: (data: TikTokChatData) => void): void;
-  on(event: 'like', fn: (data: TikTokLikeData) => void): void;
-  on(event: 'gift', fn: (data: TikTokGiftData) => void): void;
-  on(event: 'error', fn: (err: Error) => void): void;
-  on(event: 'disconnected', fn: (reason: string) => void): void;
-};
-
-interface TikTokChatData {
-  userId: string;
-  uniqueId: string;
-  comment: string;
-}
-
-interface TikTokLikeData {
-  userId: string;
-  uniqueId: string;
-  likeCount: number;
-  isFollower?: boolean;
-}
-
-interface TikTokGiftData {
-  userId: string;
-  uniqueId: string;
-  giftName: string;
-  repeatCount: number;
-  diamondCount: number;
-  giftType: number;
-  repeatEnd: number;
-  isFollower?: boolean;
-}
-
-/**
- * Initializes the connection to a live TikTok room and forwards events via the broadcast handler.
- * @param broadcast Callback function to route payload frames down to the game client
- * @param onClosed Optional callback triggered when the pipeline terminates or fails to link
- */
 export function initTikTokPipeline(
   broadcast: (event: GameEvent) => void,
   onClosed?: () => void
 ): void {
-  const tiktokUsername = process.env.TIKTOK_USERNAME || "christabelredfiel";
+  const tiktokUsername: string = process.env.TIKTOK_USERNAME || "soloz___";
 
-  console.log(`[tiktok] Initializing connector for account: @${tiktokUsername}`);
+  console.log(`[tiktok] Initializing type-safe modular connector for: @${tiktokUsername}`);
 
-  const conn: TikTokEventEmitter = new TikTokLiveConnection(tiktokUsername, {
+  const liveConnection = new TikTokLiveConnection(tiktokUsername, {
     processInitialData: true,
     fetchRoomInfoOnConnect: true,
     enableExtendedGiftInfo: false
-  }) as unknown as TikTokEventEmitter;
+  });
 
-  (conn as unknown as TikTokLiveConnection).connect()
+  const conn = liveConnection as unknown as TikTokEventEmitter;
+
+  liveConnection.connect()
     .then((state: { roomId: string }) => {
       console.log(`[tiktok] Successfully attached to room ID: ${state.roomId}`);
     })
@@ -63,49 +29,48 @@ export function initTikTokPipeline(
       if (onClosed) onClosed();
     });
 
+  // ─── Stream Viewer Join Events ───
+  conn.on(WebcastEvent.MEMBER, (data) => {
+    const mapped = mapMemberEvent(data);
+    logConversion("MEMBER / JOIN", { userId: data.user?.id, username: data.user?.displayId }, mapped);
+    broadcast(mapped);
+  });
+
   // ─── Stream Viewer Chat Comments ───
-  conn.on('chat', (data: TikTokChatData) => {
-    broadcast({
-      event: "comment",
-      data: {
-        userId: data.userId,
-        username: data.uniqueId,
-        text: data.comment
-      },
-      source: "tiktok"
-    });
+  conn.on(WebcastEvent.CHAT, (data) => {
+    const mapped = mapChatEvent(data);
+    const chatUser = data.uniqueId || data.user?.displayId || "UnknownUser";
+    logConversion("CHAT / COMMENT", { msgText: data.comment || data.commentText, userHandle: chatUser }, mapped);
+    broadcast(mapped);
   });
 
   // ─── Stream Taps / Likes ───
-  conn.on('like', (data: TikTokLikeData) => {
-    broadcast({
-      event: "like",
-      data: {
-        userId: data.userId,
-        username: data.uniqueId,
-        count: data.likeCount,
-        ...(data.isFollower !== undefined ? { isFollower: data.isFollower } : {}),
-      },
-      source: "tiktok"
-    });
+  conn.on(WebcastEvent.LIKE, (data) => {
+    const mapped = mapLikeEvent(data);
+    const likeUser = data.user?.displayId || data.uniqueId || "UnknownUser";
+    logConversion("LIKE / TAP", { incomingLikes: data.likeCount || data.count, userHandle: likeUser }, mapped);
+    broadcast(mapped);
   });
 
   // ─── Stream Gift Purchases ───
-  conn.on('gift', (data: TikTokGiftData) => {
-    // giftType 1 + repeatEnd guarantees parsing only after a combo sequence completes
-    if (data.giftType === 1 && data.repeatEnd === 1) {
-      broadcast({
-        event: "gift",
-        data: {
-          userId: data.userId,
-          username: data.uniqueId,
-          giftName: data.giftName || "", // Empty string fallback — safe without extended gift info
-          count: data.repeatCount,
-          coinCost: data.diamondCount || 1, // Raw diamonds; fallback 1 for free-tier safety
-          ...(data.isFollower !== undefined ? { isFollower: data.isFollower } : {}),
-        },
-        source: "tiktok"
-      });
+  conn.on(WebcastEvent.GIFT, (data) => {
+    const giftType = data.giftType || data.gift?.type || 0;
+    const repeatEnd = data.repeatEnd ?? 1;
+
+    const isComboFinished = giftType === 1 && repeatEnd === 1;
+    const isInstantGift = giftType !== 1;
+
+    if (isComboFinished || isInstantGift) {
+      const mapped = mapGiftEvent(data);
+      const logLabel = isComboFinished ? "GIFT (COMBO STREAK FINISHED)" : "GIFT (SINGLE)";
+
+      logConversion(logLabel, { giftName: data.giftName || data.gift?.name, totalCount: data.repeatCount || data.count }, mapped);
+      broadcast(mapped);
+    } else {
+      const username = data.user?.displayId || data.uniqueId || "UnknownUser";
+      const giftName = data.giftName || data.gift?.name || "Gift";
+      const count = data.repeatCount || data.count || 1;
+      console.log(`   ⚡ [Tiktok Gift Combo Increment] @${username} is combo-ing ${giftName} (${count}x)...`);
     }
   });
 

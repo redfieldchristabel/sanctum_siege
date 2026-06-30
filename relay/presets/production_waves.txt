@@ -1,0 +1,21 @@
+# Production preset — summon waves of devils mid-battle.
+# Does NOTHING else: no lobby joins, no gifts, no likes, no match start.
+# Run while the game is in fighting phase for immediate deployment.
+#
+# Usage: run production_waves
+#
+wave normal
+wave normal
+wave hard
+sleep 5
+wave normal
+wave hard
+sleep 5
+wave boss
+wave normal
+sleep 5
+wave normal
+wave normal
+wave hard
+wave hard
+wave boss

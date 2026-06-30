@@ -87,6 +87,16 @@ class GuildLobbyController extends ChangeNotifier {
   /// 1-second periodic timer that ticks the countdown down.
   Timer? _tickTimer;
 
+  /// Instantly forces the lobby out of the tutorial phase into active player ranking.
+  void skipTutorialToRanking() {
+    if (phase == LobbyPhase.tutorial) {
+      tutorialTimerSeconds = 0;
+      phase = LobbyPhase.ranking;
+      notifyListeners();
+      print('[lobby] Tutorial manually bypassed via admin override.');
+    }
+  }
+
   /// Start the countdown timer. Pass a callback for when ranking ends.
   void startCountdown() {
     _tickTimer?.cancel();

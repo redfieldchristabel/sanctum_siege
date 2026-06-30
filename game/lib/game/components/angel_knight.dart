@@ -30,7 +30,7 @@ class AngelKnight extends AngelSoldier {
   static const double reviveDuration = 0.9;
 
   AngelKnight({required super.userId, required super.username}) {
-    hp = 8;
+    hp = 15;
     moveSpeed = 40.0;
     size = Vector2(184, 184);
   }
@@ -39,7 +39,7 @@ class AngelKnight extends AngelSoldier {
   bool get isMelee => true;
 
   @override
-  int get maxHp => 10;
+  int get maxHp => 15;
 
   @override
   double get meleeRange => 40.0;
