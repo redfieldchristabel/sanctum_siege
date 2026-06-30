@@ -8,7 +8,7 @@ export function initTikTokPipeline(
   broadcast: (event: GameEvent) => void,
   onClosed?: () => void
 ): void {
-  const tiktokUsername: string = process.env.TIKTOK_USERNAME || "soloz___";
+  const tiktokUsername: string = process.env.TIKTOK_USERNAME || "christabelredfiel";
 
   console.log(`[tiktok] Initializing type-safe modular connector for: @${tiktokUsername}`);
 
