@@ -9,8 +9,8 @@ const gameClients = new Set<WebSocket>();
 const wss = new WebSocketServer({ port: PORT });
 
 // ─── Start the Concurrent Event Pipelines ───
-// Kick off the automated TikTok scraper pipeline, linking it directly to the broadcast pipeline
-initTikTokPipeline(broadcast);
+// TikTok pipeline boots on-demand via moderator CLI command ("tiktok") instead of at startup
+let isTikTokPipelineRunning = false;
 
 wss.on("connection", (ws, req) => {
   const url = req.url ?? "/";
@@ -36,7 +36,16 @@ wss.on("connection", (ws, req) => {
     }
 
     // Forward the message to the CLI pipeline module for routing execution
-    handleCliMessage(ws, raw as Buffer, broadcast);
+    handleCliMessage(ws, raw as Buffer, broadcast, () => {
+      if (isTikTokPipelineRunning) {
+        send(ws, { type: "error", payload: "Pipeline Aborted: TikTok Live scraper is already active." });
+        return;
+      }
+      console.log(`[relay] CLI Activation Triggered: Booting up TikTok Live Stream Listeners...`);
+      initTikTokPipeline(broadcast);
+      isTikTokPipelineRunning = true;
+      send(ws, { type: "ack", payload: "TikTok live scraping pipeline successfully launched!" });
+    });
   });
 
   ws.on("close", () => {

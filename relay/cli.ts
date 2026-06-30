@@ -54,6 +54,7 @@ const HELP = `
   Other:
     lobby            Fill lobby with mock party for testing
     lobby_clear      Reset all lobby slots
+    tiktok           Start on-demand TikTok live pipeline
     presets          List available presets
     run <name>       Run a preset
     help             Show this
@@ -250,6 +251,13 @@ const commands: CommandEntry[] = [
     },
   },
   {
+    pattern: /^tiktok$/i,
+    build: () => {
+      console.log(`  ▶ Triggering on-demand TikTok live pipeline...`);
+      return { event: "tiktok", data: {} };
+    },
+  },
+  {
     pattern: /^lobby$/i,
     build: () => ({ event: "lobby_update", data: {} }),
   },
@@ -358,7 +366,7 @@ function completer(line: string): [string[], string] {
       "become", "be", "join", "like", "gift", "comment", "chat",
       "revive", "cover", "leave", "start", "go", "kill", "wave",
       "angel", "spawn", "melee", "config", "set", "march",
-      "lobby", "lobby_clear", "presets", "run", "help", "exit", "quit",
+      "lobby", "lobby_clear", "tiktok", "presets", "run", "help", "exit", "quit",
       "next", "reset", "follow"
     ];
 

@@ -7,7 +7,8 @@ import type { GameEvent, CliCommand } from "../types.js";
 export function handleCliMessage(
   ws: WebSocket,
   rawMessage: Buffer | string,
-  broadcast: (event: GameEvent) => void
+  broadcast: (event: GameEvent) => void,
+  onStartTikTok: () => void
 ): void {
   let msg: CliCommand;
 
@@ -15,6 +16,12 @@ export function handleCliMessage(
     msg = JSON.parse(rawMessage.toString());
   } catch {
     ws.send(JSON.stringify({ type: "error", payload: "invalid JSON payload structure" }));
+    return;
+  }
+
+  // Intercept: tiktok event triggers on-demand pipeline init instead of broadcasting
+  if ((msg as { event: string }).event === "tiktok") {
+    onStartTikTok();
     return;
   }
 

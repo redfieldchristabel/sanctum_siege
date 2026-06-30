@@ -46,7 +46,7 @@ export function initTikTokPipeline(broadcast: (event: GameEvent) => void): void 
 
   const conn: TikTokEventEmitter = new TikTokLiveConnection(tiktokUsername, {
     processInitialData: true,
-    fetchRoomInfoOnConnect: false,
+    fetchRoomInfoOnConnect: true,
     enableExtendedGiftInfo: false
   }) as unknown as TikTokEventEmitter;
 
