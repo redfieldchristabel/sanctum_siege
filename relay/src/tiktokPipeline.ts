@@ -46,8 +46,8 @@ export function initTikTokPipeline(broadcast: (event: GameEvent) => void): void 
 
   const conn: TikTokEventEmitter = new TikTokLiveConnection(tiktokUsername, {
     processInitialData: true,
-    fetchRoomInfoOnConnect: true,
-    enableExtendedGiftInfo: true
+    fetchRoomInfoOnConnect: false,
+    enableExtendedGiftInfo: false
   }) as unknown as TikTokEventEmitter;
 
   (conn as unknown as TikTokLiveConnection).connect()
@@ -94,9 +94,9 @@ export function initTikTokPipeline(broadcast: (event: GameEvent) => void): void 
         data: {
           userId: data.userId,
           username: data.uniqueId,
-          giftName: data.giftName,
+          giftName: data.giftName || "", // Empty string fallback — safe without extended gift info
           count: data.repeatCount,
-          coinCost: data.diamondCount,
+          coinCost: data.diamondCount || 1, // Raw diamonds; fallback 1 for free-tier safety
           ...(data.isFollower !== undefined ? { isFollower: data.isFollower } : {}),
         },
         source: "tiktok"
