@@ -122,12 +122,9 @@ class NextMatchEvent extends RelayEvent {
 }
 
 // ── Gift → lobby point conversion ───────────────
-int giftPoints(String giftName, int count) {
-  final lower = giftName.toLowerCase();
-  if (lower.contains('capsule') || lower.contains('lion')) return 500 * count;
-  if (lower.contains('donut') || lower.contains('diamond')) return 50 * count;
-  if (lower.contains('rose') || lower.contains('flower')) return 10 * count;
-  return count; // default: 1 pt per gift
+// Pure numeric: 10 game points per TikTok coin spent (no string-matching needed).
+int giftPoints(int coinCost, int count) {
+  return coinCost * 10 * count;
 }
 
 // ══════════════════════════════════════════════════
