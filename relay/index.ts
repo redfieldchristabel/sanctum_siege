@@ -36,7 +36,7 @@ wss.on("connection", (ws, req) => {
     }
 
     // Forward the message to the CLI pipeline module for routing execution
-    handleCliMessage(ws, raw as Buffer, broadcast, () => {
+    handleCliMessage(ws, raw as Buffer, broadcast, (username?: string) => {
       if (isTikTokPipelineRunning) {
         send(ws, { type: "error", payload: "Pipeline Aborted: TikTok Live scraper is already active." });
         return;
@@ -48,7 +48,7 @@ wss.on("connection", (ws, req) => {
       isTikTokPipelineRunning = true;
 
       // Pass the state-reset callback so the process error or disconnect can auto-release
-      initTikTokPipeline(broadcast, () => {
+      initTikTokPipeline(broadcast, username, () => {
         isTikTokPipelineRunning = false;
         console.log(`[relay] TikTok pipeline state cleared. Ready for next manual activation.`);
       });

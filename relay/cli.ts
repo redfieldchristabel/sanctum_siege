@@ -251,10 +251,11 @@ const commands: CommandEntry[] = [
     },
   },
   {
-    pattern: /^tiktok$/i,
-    build: () => {
-      console.log(`  ▶ Triggering on-demand TikTok live pipeline...`);
-      return { event: "tiktok", data: {} };
+    pattern: /^tiktok(?:\s+(.+))?$/i,
+    build: ([, username]) => {
+      const user = username ? username.trim() : undefined;
+      console.log(`  ▶ Triggering on-demand TikTok live pipeline${user ? ` for @${user}` : ""}...`);
+      return { event: "tiktok", data: user ? { username: user } : {} };
     },
   },
   {

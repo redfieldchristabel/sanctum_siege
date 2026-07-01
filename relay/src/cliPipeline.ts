@@ -8,7 +8,7 @@ export function handleCliMessage(
   ws: WebSocket,
   rawMessage: Buffer | string,
   broadcast: (event: GameEvent) => void,
-  onStartTikTok: () => void
+  onStartTikTok: (username?: string) => void
 ): void {
   let msg: CliCommand;
 
@@ -21,7 +21,8 @@ export function handleCliMessage(
 
   // Intercept: tiktok event triggers on-demand pipeline init instead of broadcasting
   if ((msg as { event: string }).event === "tiktok") {
-    onStartTikTok();
+    const username = (msg.data as Record<string, string> | undefined)?.username;
+    onStartTikTok(username);
     return;
   }
 

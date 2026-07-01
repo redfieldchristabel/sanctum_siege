@@ -6,13 +6,14 @@ import { logConversion } from './tiktok/logger.js';
 
 export function initTikTokPipeline(
   broadcast: (event: GameEvent) => void,
+  tiktokUsername?: string,
   onClosed?: () => void
 ): void {
-  const tiktokUsername: string = process.env.TIKTOK_USERNAME || "christabelredfiel";
+  const username: string = tiktokUsername ?? process.env.TIKTOK_USERNAME ?? "christabelredfiel";
 
-  console.log(`[tiktok] Initializing type-safe modular connector for: @${tiktokUsername}`);
+  console.log(`[tiktok] Initializing type-safe modular connector for: @${username}`);
 
-  const liveConnection = new TikTokLiveConnection(tiktokUsername, {
+  const liveConnection = new TikTokLiveConnection(username, {
     processInitialData: true,
     fetchRoomInfoOnConnect: true,
     enableExtendedGiftInfo: false
