@@ -2,8 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
-import 'game/lobby/angel_guild_screen.dart';
-import 'game/lobby/guild_lobby_controller.dart';
+import 'game/cover_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,19 +25,17 @@ void main() async {
     });
   }
 
-  runApp(SanctumSiegeApp(controller: GuildLobbyController()));
+  runApp(const SanctumSiegeApp());
 }
 
-/// Root app — starts at Angel Guild lobby, then enters battle.
+/// Root app — starts at game cover, then enters Angel Guild lobby.
 class SanctumSiegeApp extends StatelessWidget {
-  final GuildLobbyController controller;
-
   /// Global navigator key so the game can return to the lobby
   /// even after the original route was replaced/disposed.
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
 
-  const SanctumSiegeApp({super.key, required this.controller});
+  const SanctumSiegeApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +47,7 @@ class SanctumSiegeApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFF0B0A1A),
         textTheme: GoogleFonts.vt323TextTheme(ThemeData.dark().textTheme),
       ),
-      home: AngelGuildScreen(controller: controller),
+      home: const CoverScreen(),
     );
   }
 }

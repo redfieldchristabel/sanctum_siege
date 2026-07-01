@@ -67,6 +67,7 @@ flutter:
     - assets/images/sunfletcher_sheet.png
     - assets/images/default_soldier.png
     - assets/images/ghost_soul.png
+    - assets/images/game_cover.png
     - assets/images/angel_knight/rotations/
     - assets/images/angel_knight/fight/
     - assets/images/angel_knight/revive/
